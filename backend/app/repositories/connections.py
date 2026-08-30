@@ -1,0 +1,217 @@
+"""SQL for source connections, in-flight authorizations, and sync runs.
+
+The state machine lives here rather than in the API so every caller reads and writes the
+same seven statuses, and so a connection row never carries a secret: credentials are always
+one indirection away behind ``auth_ref``.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import secrets
+from datetime import timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.connectors.base import SourceStatus
+from app.models import OAuthAuthorization, SourceConnection, SyncRun, utcnow
+
+STATE_BYTES = 32
+
+
+def hash_state(state: str) -> str:
+    """Only the digest is stored, so reading the table cannot forge a callback."""
+
+    return hashlib.sha256(state.encode()).hexdigest()
+
+
+def new_state() -> str:
+    return secrets.token_urlsafe(STATE_BYTES)
+
+
+class SourceConnectionRepository:
+    def __init__(self, session: Session, owner_id: str) -> None:
+        self._session = session
+        self._owner_id = owner_id
+
+    def all(self) -> list[SourceConnection]:
+        return list(
+            self._session.scalars(
+                select(SourceConnection)
+                .where(SourceConnection.owner_id == self._owner_id)
+                .order_by(SourceConnection.source, SourceConnection.external_account_id)
+            )
+        )
+
+    def by_id(self, connection_id: str) -> SourceConnection | None:
+        row = self._session.get(SourceConnection, connection_id)
+        return row if row is not None and row.owner_id == self._owner_id else None
+
+    def by_account(self, source: str, external_account_id: str) -> SourceConnection | None:
+        return self._session.scalar(
+            select(SourceConnection).where(
+                SourceConnection.owner_id == self._owner_id,
+                SourceConnection.source == source,
+                SourceConnection.external_account_id == external_account_id,
+            )
+        )
+
+    def pending(self, source: str, capabilities: dict) -> SourceConnection:
+        """Get or create the placeholder row an authorization attempt hangs off."""
+
+        existing = self.by_account(source, "")
+        if existing is None:
+            existing = SourceConnection(owner_id=self._owner_id, source=source)
+            self._session.add(existing)
+        existing.status = SourceStatus.AUTHORIZING
+        existing.capabilities = capabilities
+        existing.last_error = None
+        existing.updated_at = utcnow()
+        self._session.flush()
+        return existing
+
+    def promote(
+        self,
+        placeholder: SourceConnection,
+        *,
+        external_account_id: str,
+        auth_ref: str,
+        scopes: tuple[str, ...],
+        capabilities: dict,
+    ) -> SourceConnection:
+        """Attach a completed grant, reusing the row for that account if one exists.
+
+        Reconnecting an already-connected account must keep its cursor: dropping it would
+        turn a re-consent into an unbounded re-import.
+        """
+
+        target = self.by_account(placeholder.source, external_account_id)
+        if target is not None and target.id != placeholder.id:
+            self._session.delete(placeholder)
+        else:
+            target = placeholder
+            target.external_account_id = external_account_id
+        target.auth_ref = auth_ref
+        target.scopes = list(scopes)
+        target.capabilities = capabilities
+        target.status = SourceStatus.CONNECTED
+        target.paused = False
+        target.last_error = None
+        target.consent_granted_at = utcnow()
+        target.updated_at = utcnow()
+        self._session.flush()
+        return target
+
+    def mark(
+        self,
+        connection: SourceConnection,
+        status: SourceStatus,
+        *,
+        error: str | None = None,
+    ) -> None:
+        connection.status = status
+        connection.last_error = error
+        connection.updated_at = utcnow()
+        self._session.flush()
+
+    def delete(self, connection: SourceConnection) -> None:
+        self._session.delete(connection)
+        self._session.flush()
+
+
+class OAuthAuthorizationRepository:
+    """One-time, expiring records of authorizations the owner has started."""
+
+    def __init__(self, session: Session, owner_id: str | None = None) -> None:
+        self._session = session
+        self._owner_id = owner_id
+
+    def open(
+        self,
+        source: str,
+        redirect_uri: str,
+        secret_ref: str | None,
+        ttl_minutes: int,
+    ) -> str:
+        state = new_state()
+        now = utcnow()
+        self._session.add(
+            OAuthAuthorization(
+                owner_id=self._owner_id,
+                source=source,
+                state_hash=hash_state(state),
+                redirect_uri=redirect_uri,
+                secret_ref=secret_ref,
+                expires_at=now + timedelta(minutes=ttl_minutes),
+            )
+        )
+        self._session.flush()
+        return state
+
+    def consume(self, source: str, state: str) -> OAuthAuthorization | None:
+        """Redeem a state nonce exactly once, refusing wrong-source and expired attempts."""
+
+        row = self._session.scalar(
+            select(OAuthAuthorization).where(OAuthAuthorization.state_hash == hash_state(state))
+        )
+        if row is None or row.consumed_at is not None or row.source != source:
+            return None
+        if row.expires_at <= utcnow():
+            return None
+        row.consumed_at = utcnow()
+        self._session.flush()
+        return row
+
+
+class SyncRunRepository:
+    def __init__(self, session: Session, owner_id: str) -> None:
+        self._session = session
+        self._owner_id = owner_id
+
+    def start(self, connection: SourceConnection, mode: str) -> SyncRun:
+        run = SyncRun(
+            owner_id=self._owner_id,
+            source_connection_id=connection.id,
+            mode=mode,
+            status="running",
+            cursor_before=dict(connection.sync_cursor or {}),
+        )
+        self._session.add(run)
+        self._session.flush()
+        return run
+
+    def finish(
+        self,
+        run: SyncRun,
+        *,
+        status: str,
+        processed: int,
+        skipped: int,
+        errors: int,
+        counters: dict,
+        cursor_after: dict,
+        error_message: str | None,
+    ) -> None:
+        run.status = status
+        run.processed = processed
+        run.skipped = skipped
+        run.errors = errors
+        run.counters = counters
+        run.cursor_after = cursor_after
+        run.error_message = error_message
+        run.finished_at = utcnow()
+        self._session.flush()
+
+    def recent(self, connection_id: str, limit: int = 5) -> list[SyncRun]:
+        return list(
+            self._session.scalars(
+                select(SyncRun)
+                .where(
+                    SyncRun.owner_id == self._owner_id,
+                    SyncRun.source_connection_id == connection_id,
+                )
+                .order_by(SyncRun.started_at.desc())
+                .limit(limit)
+            )
+        )

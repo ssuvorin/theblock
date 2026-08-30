@@ -16,6 +16,7 @@ from app.services.opportunity_cards import OpportunityCardBuilder
 from app.services.presentation import interaction_json
 from app.services.query.goal_parser import DeterministicGoalParser
 from app.services.query.ranking import QueryRanker
+from app.services.warm_paths import WarmPathDeriver
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +36,16 @@ class OpportunityQueryOrchestrator:
         self._people = PeopleRepository(session, owner.id, settings.demo_mode)
         self._ranker = QueryRanker()
         self._cards = OpportunityCardBuilder(self._repo, self._ranker)
+        self._warm_paths = WarmPathDeriver(session, owner.id, settings.demo_mode)
         self._provider = self._market_provider()
 
     def execute(self, question: str) -> dict:
         """Answer one goal, degrading only for named outages and never for a defect.
 
         The two catches below are the complete list of tolerated failures: a provider transport
-        outage and a PostgreSQL error while reading the private graph. Everything else — a blank
-        API key, a normalisation bug, schema drift — propagates and becomes a 500 rather than
-        being relabelled as a partially available component.
+        outage and a PostgreSQL error while deriving or reading the private graph. Everything
+        else — a blank API key, a normalisation bug, schema drift — propagates and becomes a
+        500 rather than being relabelled as a partially available component.
         """
 
         goal = DeterministicGoalParser().parse(question)
@@ -61,6 +63,7 @@ class OpportunityQueryOrchestrator:
         ]
         self._session.flush()
         try:
+            self._warm_paths.derive(opportunities)
             cards = self._card_list(opportunities, goal)
         except SQLAlchemyError:
             logger.exception(

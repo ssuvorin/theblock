@@ -93,8 +93,17 @@ def collect_reciprocity(
     return {url: item.freeze() for url, item in accumulators.items()}
 
 
-def strength_components(stats: ReciprocityStats, now: datetime | None = None) -> dict[str, float]:
-    """Return advisory sub-scores; every component is explainable to the owner."""
+def strength_components(
+    stats: ReciprocityStats,
+    now: datetime | None = None,
+    *,
+    channel_count: int = 1,
+) -> dict[str, float]:
+    """Return advisory sub-scores; every component is explainable to the owner.
+
+    ``channel_count`` is the number of distinct sources the relationship is evidenced in, so
+    someone reached by both mail and messages scores above someone reached by one of them.
+    """
 
     reference = now or utcnow()
     age_days = max(0.0, (reference - stats.last_at).total_seconds() / 86400)
@@ -102,7 +111,7 @@ def strength_components(stats: ReciprocityStats, now: datetime | None = None) ->
         "recency": round(max(0.0, 1.0 - age_days / RECENCY_HORIZON_DAYS), 3),
         "frequency": round(min(1.0, stats.total / FREQUENCY_SATURATION), 3),
         "reciprocity": 1.0 if stats.is_reciprocal else 0.3,
-        "channel_diversity": 0.25,
+        "channel_diversity": round(min(1.0, max(1, channel_count) * 0.25), 3),
     }
 
 
@@ -124,13 +133,67 @@ def relationship_status(stats: ReciprocityStats, now: datetime | None = None) ->
     return "active" if age_days <= ACTIVE_HORIZON_DAYS else "dormant"
 
 
+class EdgeUpserter:
+    """Create or update owner-to-contact edges, keyed by contact person id.
+
+    Every caller scores and labels an edge the same way here, so an edge written from an
+    archive import and one written from a live connector stay directly comparable.
+    """
+
+    def __init__(self, session: Session, owner_id: str, self_person_id: str) -> None:
+        self._session = session
+        self._owner_id = owner_id
+        self._self_person_id = self_person_id
+        self._existing = self._load_edges()
+
+    def upsert(
+        self,
+        contact_id: str,
+        stats: ReciprocityStats,
+        evidence: list[dict[str, str]],
+        *,
+        channel_count: int = 1,
+    ) -> bool:
+        """Write one edge and report whether it had to be created."""
+
+        edge = self._existing.get(contact_id)
+        created = edge is None
+        if edge is None:
+            edge = Relationship(
+                owner_id=self._owner_id,
+                person_a_id=self._self_person_id,
+                person_b_id=contact_id,
+                type="contact",
+            )
+            self._session.add(edge)
+            self._existing[contact_id] = edge
+        components = strength_components(stats, channel_count=channel_count)
+        edge.strength_components = components
+        edge.strength_score = strength_score(components)
+        edge.status = relationship_status(stats)
+        edge.last_interaction_at = stats.last_at
+        edge.total_interactions = stats.total
+        edge.evidence = evidence
+        edge.updated_at = utcnow()
+        return created
+
+    def _load_edges(self) -> dict[str, Relationship]:
+        rows = self._session.scalars(
+            select(Relationship).where(
+                Relationship.owner_id == self._owner_id,
+                Relationship.person_a_id == self._self_person_id,
+            )
+        )
+        return {row.person_b_id: row for row in rows}
+
+
 class RelationshipDeriver:
-    """Upsert one owner-to-contact edge per counterpart with cited evidence."""
+    """Upsert one owner-to-contact edge per archive counterpart with cited evidence."""
 
     def __init__(self, session: Session, owner_id: str, self_person: Person) -> None:
         self._session = session
-        self._owner_id = owner_id
         self._self_person = self_person
+        self._upserter = EdgeUpserter(session, owner_id, self_person.id)
 
     def apply(
         self,
@@ -138,56 +201,29 @@ class RelationshipDeriver:
         contacts: dict[str, Person],
         interaction_ids: dict[str, str],
     ) -> tuple[int, int]:
-        existing = self._existing_edges()
         created = 0
         updated = 0
         for url, stats in stats_by_url.items():
             contact = contacts.get(url)
             if contact is None or contact.id == self._self_person.id:
                 continue
-            edge = existing.get(contact.id)
-            if edge is None:
-                edge = Relationship(
-                    owner_id=self._owner_id,
-                    person_a_id=self._self_person.id,
-                    person_b_id=contact.id,
-                    type="contact",
-                )
-                self._session.add(edge)
+            if self._upserter.upsert(contact.id, stats, _archive_evidence(stats, interaction_ids)):
                 created += 1
             else:
                 updated += 1
-            self._assign(edge, stats, interaction_ids)
         self._session.flush()
         return created, updated
 
-    def _existing_edges(self) -> dict[str, Relationship]:
-        rows = self._session.scalars(
-            select(Relationship).where(
-                Relationship.owner_id == self._owner_id,
-                Relationship.person_a_id == self._self_person.id,
-            )
-        )
-        return {row.person_b_id: row for row in rows}
 
-    @staticmethod
-    def _assign(
-        edge: Relationship,
-        stats: ReciprocityStats,
-        interaction_ids: dict[str, str],
-    ) -> None:
-        components = strength_components(stats)
-        edge.strength_components = components
-        edge.strength_score = strength_score(components)
-        edge.status = relationship_status(stats)
-        edge.last_interaction_at = stats.last_at
-        edge.total_interactions = stats.total
-        edge.evidence = [
-            {"interaction_id": interaction_ids[key], "source": "linkedin"}
-            for key in stats.evidence
-            if key in interaction_ids
-        ]
-        edge.updated_at = utcnow()
+def _archive_evidence(
+    stats: ReciprocityStats,
+    interaction_ids: dict[str, str],
+) -> list[dict[str, str]]:
+    return [
+        {"interaction_id": interaction_ids[key], "source": "linkedin"}
+        for key in stats.evidence
+        if key in interaction_ids
+    ]
 
 
 def interaction_id_index(session: Session, owner_id: str) -> dict[str, str]:

@@ -48,7 +48,7 @@ def test_import_persists_people_interactions_and_relationships(
     client: TestClient,
     auth: dict[str, str],
 ) -> None:
-    people_before = _count(client, Person)
+    assert _count(client, Person) > 0
     body = _upload(client, auth)
 
     assert body["status"] == "imported"
@@ -58,7 +58,8 @@ def test_import_persists_people_interactions_and_relationships(
     assert written["interactions_created"] == body["messages"]
     assert written["relationships_created"] > 0
     assert written["data_origin"] == "synthetic"
-    assert _count(client, Person) == people_before + written["people_created"]
+    assert written["demo_seed_cleared"]["removed"] is True
+    assert _count(client, Person) == written["people_created"]
     assert _count(client, InteractionEvent) >= written["interactions_created"]
     assert _count(client, InteractionParticipant) > 0
     assert _count(client, Relationship) >= written["relationships_created"]

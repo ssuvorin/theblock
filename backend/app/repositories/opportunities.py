@@ -18,6 +18,7 @@ from app.models import (
     Relationship,
     utcnow,
 )
+from app.repositories.organizations import OrganizationRepository
 
 
 class OpportunityRepository:
@@ -25,6 +26,7 @@ class OpportunityRepository:
         self._session = session
         self._owner_id = owner_id
         self._demo_mode = demo_mode
+        self._organizations = OrganizationRepository(session, owner_id)
 
     def list(
         self,
@@ -177,23 +179,9 @@ class OpportunityRepository:
         )
 
     def _resolve_organization(self, result: PublicSearchResult) -> Organization | None:
-        if not result.organization_domain or not result.organization_name:
-            return None
-        organization = self._session.scalar(
-            select(Organization).where(
-                Organization.owner_id == self._owner_id,
-                Organization.domain == result.organization_domain,
-            )
-        )
-        if organization is None:
-            organization = Organization(
-                owner_id=self._owner_id,
-                name=result.organization_name,
-                domain=result.organization_domain,
-            )
-            self._session.add(organization)
-            self._session.flush()
-        return organization
+        """Reuse the row a connection list already created for this company, domain and all."""
+
+        return self._organizations.resolve(result.organization_name, result.organization_domain)
 
     @staticmethod
     def _apply_result(

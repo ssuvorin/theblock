@@ -23,9 +23,31 @@ from app.models import (
 
 _NAMESPACE = uuid.UUID("bfb9563e-04bb-4baf-adcc-e3965f6f6081")
 
+SEEDED_ORG_KEYS = ("binance", "rain", "okx", "crypto", "neural", "crescent", "palm")
+SEEDED_PERSON_KEYS = (
+    "alex",
+    "marta",
+    "sergey",
+    "john",
+    "daniel",
+    "nadia",
+    "omar",
+    "lena",
+    "tom",
+    "ruth",
+)
+SEEDED_OPPORTUNITY_KEYS = ("binance", "rain", "okx", "crypto")
+SEEDED_INTERACTION_KEYS = ("marta", "john", "sergey", "daniel")
+
 
 def stable_id(label: str) -> str:
     return str(uuid.uuid5(_NAMESPACE, label))
+
+
+def seeded_ids(prefix: str, keys: tuple[str, ...]) -> list[str]:
+    """Recompute the ids the seeder produced, so they can be removed exactly."""
+
+    return [stable_id(f"{prefix}:{key}") for key in keys]
 
 
 class DemoSeeder:

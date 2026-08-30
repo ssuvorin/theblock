@@ -12,6 +12,7 @@ from app.connectors.linkedin_export.parse import LinkedInArchiveError
 from app.database import Database
 from app.models import Owner
 from app.services.chunking import chunk_interaction
+from app.services.demo_reset import DemoSeedReset
 from app.services.graph_writer import ArchiveGraphWriter
 from app.services.semantic_runtime import build_runtime
 
@@ -77,16 +78,22 @@ def persist_plan(
 ) -> dict[str, object]:
     """Write the parsed archive into the canonical graph, reporting what changed.
 
+    The demo seed is cleared first: it carries its own self person and its own copies of the
+    same contacts, so leaving it in place would give the owner two identities and duplicate
+    every person who appears in both.
+
     Indexing is queued in the same transaction rather than performed here: embeddings are a
     paid external call, so the owner gets their graph immediately and the vector store
     catches up afterwards without the import being able to lose it.
     """
 
+    demo_removed = DemoSeedReset(session, owner).run()
     try:
         report = ArchiveGraphWriter(session, owner).write(plan)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     written = report.as_dict()
+    written["demo_seed_cleared"] = demo_removed.as_dict()
     written["semantic_index"] = queue_for_indexing(session, owner, settings)
     return written
 
