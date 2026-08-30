@@ -66,6 +66,10 @@ services:
       CRM_DEMO_MODE: ${CRM_DEMO_MODE:-true}
       CRM_SEED_DEMO_DATA: ${CRM_SEED_DEMO_DATA:-true}
       CRM_CONTEXT_DEV_API_KEY: ${CONTEXT_DEV_API_KEY:-}
+      CRM_CONVEX_URL: ${CONVEX_URL:-}
+      CRM_CONVEX_DEPLOY_KEY: ${CONVEX_DEPLOY_KEY:-}
+      CRM_OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      CRM_EMBEDDING_VERSION: ${EMBEDDING_VERSION:-v1}
     depends_on:
       pgbouncer:
         condition: service_healthy
