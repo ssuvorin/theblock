@@ -10,6 +10,7 @@ from app.connectors.linkedin_export.parse import LinkedInArchiveError
 from app.models import Owner
 from app.services.chunking import chunk_interaction
 from app.services.graph_writer import ArchiveGraphWriter
+from app.services.semantic_runtime import build_runtime
 
 router = APIRouter(prefix="/api/imports", tags=["imports"])
 MAX_ARCHIVE_BYTES = 30 * 1024 * 1024
@@ -66,14 +67,39 @@ def persist_plan(
     session: DbSession,
     owner: Owner,
     plan: LinkedInImportPlan,
+    settings: RuntimeSettings,
 ) -> dict[str, object]:
-    """Write the parsed archive into the canonical graph, reporting what changed."""
+    """Write the parsed archive into the canonical graph, reporting what changed.
+
+    Indexing is queued in the same transaction rather than performed here: embeddings are a
+    paid external call, so the owner gets their graph immediately and the vector store
+    catches up afterwards without the import being able to lose it.
+    """
 
     try:
         report = ArchiveGraphWriter(session, owner).write(plan)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return report.as_dict()
+    written = report.as_dict()
+    written["semantic_index"] = queue_for_indexing(session, owner, settings)
+    return written
+
+
+def queue_for_indexing(
+    session: DbSession,
+    owner: Owner,
+    settings: RuntimeSettings,
+) -> dict[str, object]:
+    """Enqueue every stored interaction and report the queue without contacting a provider."""
+
+    runtime = build_runtime(session, owner.id, settings)
+    enqueued = runtime.indexer.enqueue_owner_interactions()
+    return {
+        "provider": runtime.status,
+        "embedding_version": settings.embedding_version,
+        "enqueued": enqueued,
+        "pending": runtime.outbox.pending_count(),
+    }
 
 
 @router.post("/linkedin")
@@ -108,5 +134,5 @@ async def import_linkedin_archive(
         "status": "imported",
         "persistence": "postgresql",
         **summary,
-        "written": persist_plan(session, owner, plan),
+        "written": persist_plan(session, owner, plan, settings),
     }

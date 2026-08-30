@@ -1,5 +1,8 @@
+import logging
 from dataclasses import asdict
 
+import httpx
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import Settings, has_live_context_key
@@ -13,6 +16,12 @@ from app.services.opportunity_cards import OpportunityCardBuilder
 from app.services.presentation import interaction_json
 from app.services.query.goal_parser import DeterministicGoalParser
 from app.services.query.ranking import QueryRanker
+
+logger = logging.getLogger(__name__)
+
+PRIVATE_RETRIEVAL_COMPONENT = "private_retrieval"
+MARKET_SEARCH_COMPONENT = "context_dev_search"
+MARKET_OUTAGE = (MarketSearchUnavailable, httpx.HTTPError)
 
 
 class OpportunityQueryOrchestrator:
@@ -29,24 +38,47 @@ class OpportunityQueryOrchestrator:
         self._provider = self._market_provider()
 
     def execute(self, question: str) -> dict:
+        """Answer one goal, degrading only for named outages and never for a defect.
+
+        The two catches below are the complete list of tolerated failures: a provider transport
+        outage and a PostgreSQL error while reading the private graph. Everything else — a blank
+        API key, a normalisation bug, schema drift — propagates and becomes a 500 rather than
+        being relabelled as a partially available component.
+        """
+
         goal = DeterministicGoalParser().parse(question)
         try:
             search = self._provider.search(self._owner.id, goal, num_results=20)
-        except MarketSearchUnavailable:
+        except MARKET_OUTAGE:
+            logger.exception(
+                "market search unavailable for owner %s; answering from private graph only",
+                self._owner.id,
+            )
             return self._market_degraded(goal)
         opportunities = [
             self._repo.upsert_result(result, search.provider, search.disclosure)
             for result in search.results
         ]
         self._session.flush()
-        # Warm paths are read straight from PostgreSQL. A failure here is a defect, not a
-        # degraded component, so it must surface instead of being relabelled as an outage.
-        cards = self._card_list(opportunities, goal)
+        try:
+            cards = self._card_list(opportunities, goal)
+        except SQLAlchemyError:
+            logger.exception(
+                "private warm-path retrieval failed for owner %s; returning public evidence only",
+                self._owner.id,
+            )
+            cards = [self._public_only_card(item, goal) for item in opportunities]
+            return self._answer(
+                goal, search, cards, degraded_components=[PRIVATE_RETRIEVAL_COMPONENT]
+            )
         cards.sort(key=lambda item: item["ranking_factors"]["score"], reverse=True)
         return self._answer(goal, search, cards)
 
     def _card_list(self, opportunities: list[Opportunity], goal: Goal) -> list[dict]:
         return self._cards.cards(opportunities, goal)
+
+    def _public_only_card(self, opportunity: Opportunity, goal: Goal) -> dict:
+        return self._cards.public_only_card(opportunity, goal)
 
     def _answer(
         self,
@@ -105,7 +137,7 @@ class OpportunityQueryOrchestrator:
                 "network_candidates": candidates,
                 "evidence_quality": "partial" if candidates else "insufficient",
                 "degraded": True,
-                "degraded_components": ["context_dev_search"],
+                "degraded_components": [MARKET_SEARCH_COMPONENT],
                 "private_retrieval": "owner-scoped prepared synthetic graph",
             }
         }

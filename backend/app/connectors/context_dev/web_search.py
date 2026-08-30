@@ -66,17 +66,15 @@ class ContextDevWebSearch:
             return MarketSearchResponse(
                 [], "context.dev", datetime.now(UTC), 0, reason, cache_hit=reservation.duplicate
             )
+        answered = False
         try:
             body = self._request(payload)
+            answered = True
         except (httpx.HTTPError, ValueError) as error:
-            self._release(request_key, "context.dev market search transport or decode failure")
             raise MarketSearchUnavailable(f"context.dev request failed: {error}") from error
-        except BaseException:
-            # Releasing credits is cleanup, so it must stay broad. Narrowing this clause only
-            # loses the refund: an unlisted error would strand the reservation as "reserved"
-            # forever and quietly shrink the budget. The re-raise keeps the failure visible.
-            self._release(request_key, "context.dev market search failed before a usable response")
-            raise
+        finally:
+            if not answered:
+                self._release(request_key)
         consumed = self._credits_consumed(body, estimate)
         self._ledger.reconcile("market_search", request_key, consumed)
         checked_at = datetime.now(UTC)
@@ -91,10 +89,16 @@ class ContextDevWebSearch:
             ),
         )
 
-    def _release(self, request_key: str, message: str) -> None:
-        """Log the failure and return the reserved credits, never logging the API key."""
+    def _release(self, request_key: str) -> None:
+        """Refund the reservation for any failed call, logging the cause but never the key.
 
-        logger.exception(message)
+        This runs from ``finally`` rather than from a broad ``except`` so that the refund is
+        unconditional while no exception type is ever swallowed or relabelled: only genuine
+        transport and decode failures become ``MarketSearchUnavailable`` above, and every other
+        error keeps propagating as the defect it is.
+        """
+
+        logger.exception("context.dev market search failed; refunding reserved credits")
         self._ledger.fail("market_search", request_key)
 
     def _request(self, payload: dict) -> dict:

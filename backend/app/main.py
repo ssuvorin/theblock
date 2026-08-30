@@ -15,6 +15,7 @@ from app.api import (
     opportunities,
     people,
     query,
+    semantic,
 )
 from app.config import Settings
 from app.database import Database
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         interactions.router,
         drafts.router,
         followups.router,
+        semantic.router,
     ):
         application.include_router(router)
     return application

@@ -20,3 +20,6 @@ __pycache__/
 *.sqlite3
 coverage/
 .env.local
+
+# Convex codegen; regenerated on every deploy
+convex/convex/_generated/
