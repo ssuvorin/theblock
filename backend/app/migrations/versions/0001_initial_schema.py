@@ -48,7 +48,7 @@ def _owned_columns() -> list[sa.Column]:
     ]
 
 
-def _owner_constraints() -> list[sa.SchemaItem]:
+def _owner_constraints() -> list[sa.schema.SchemaItem]:
     return [
         sa.ForeignKeyConstraint(["owner_id"], ["owner.id"]),
         sa.PrimaryKeyConstraint("id"),
