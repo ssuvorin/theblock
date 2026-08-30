@@ -186,19 +186,88 @@ export interface PersonResponse {
   person: PersonProfile;
 }
 
+export type ConnectionStatus =
+  | "disconnected"
+  | "authorizing"
+  | "connected"
+  | "syncing"
+  | "degraded"
+  | "reauth_required"
+  | "error";
+
+export type SourceAvailability = "available" | "not_configured" | "unsupported";
+
 export interface Connection {
   id: string;
   source: string;
-  external_account_id?: string;
-  status: string;
+  external_account_id?: string | null;
+  status: ConnectionStatus | string;
+  paused?: boolean;
+  scopes?: string[];
+  capabilities?: Record<string, unknown>;
+  sync_cursor?: Record<string, unknown>;
   last_sync_at?: string | null;
   last_error?: string | null;
-  capabilities?: Record<string, unknown>;
-  item_count?: number;
+  consent_granted_at?: string | null;
+  item_count?: number | null;
 }
 
 export interface ConnectionsResponse {
   connections: Connection[];
+}
+
+/** One catalog entry. Its scopes are exactly what the OAuth request will ask for. */
+export interface SourceCatalogEntry {
+  source: string;
+  label: string;
+  kind: string;
+  availability: SourceAvailability | string;
+  reason?: string | null;
+  surfaces: string[];
+  scopes: string[];
+  processors: string[];
+  disclosure: string;
+  lookback_days?: number | null;
+  write_access: boolean;
+  requirements: string[];
+}
+
+export interface SourceCatalogResponse {
+  sources: SourceCatalogEntry[];
+}
+
+export interface SyncRun {
+  id: string;
+  mode: string;
+  status: "running" | "succeeded" | "partial" | "failed" | string;
+  processed: number;
+  skipped: number;
+  errors: number;
+  counters?: Record<string, number | string[]>;
+  error_message?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+}
+
+export interface ConnectionStatusResponse extends Connection {
+  sync_runs: SyncRun[];
+}
+
+export interface ScheduledMeeting {
+  event_id: string;
+  html_link: string;
+  meet_url?: string | null;
+  conference_status: string;
+  starts_at: string;
+  ends_at: string;
+  guests: string[];
+  invites_sent: boolean;
+}
+
+export interface ScheduleMeetingResponse {
+  meeting: ScheduledMeeting;
+  interaction_id?: string | null;
+  collabute: { notetaker_attached: boolean; reason: string };
 }
 
 export interface FollowUpsResponse {

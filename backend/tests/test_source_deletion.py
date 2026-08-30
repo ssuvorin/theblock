@@ -46,7 +46,12 @@ def session() -> Iterator[Session]:
         yield active
 
 
-def _interaction(session: Session, source: str, external_id: str, connection_id: str) -> str:
+def _interaction(
+    session: Session,
+    source: str,
+    external_id: str,
+    connection_id: str | None,
+) -> str:
     event = InteractionEvent(
         owner_id="owner-1",
         source_connection_id=connection_id,
@@ -101,7 +106,7 @@ def test_only_this_connection_s_interactions_are_removed(
 ) -> None:
     _interaction(session, "gmail", "g1", connection.id)
     _interaction(session, "google_calendar", "c1", connection.id)
-    kept = _interaction(session, "linkedin", "l1", connection.id)
+    kept = _interaction(session, "linkedin", "l1", None)
 
     result = detail(session, session.get(Owner, "owner-1"), connection)
 
@@ -117,14 +122,19 @@ def test_a_person_evidenced_by_another_source_survives(
     shared = _person(session, "Priya Nair", "linkedin_url", "https://li/priya", "linkedin_export")
     gmail_only = _person(session, "Tom Reed", "email", "tom@x.test", "gmail")
     event = _interaction(session, "gmail", "g1", connection.id)
-    other = _interaction(session, "linkedin", "l1", connection.id)
-    for person_id, interaction_id in ((shared, event), (shared, other), (gmail_only, event)):
+    other = _interaction(session, "linkedin", "l1", None)
+    rows = (
+        (shared, event, "priya@rain.test"),
+        (shared, other, "priya@rain.test"),
+        (gmail_only, event, "tom@x.test"),
+    )
+    for person_id, interaction_id, address in rows:
         session.add(
             InteractionParticipant(
                 owner_id="owner-1",
                 interaction_id=interaction_id,
                 person_id=person_id,
-                source_address="addr",
+                source_address=address,
                 role="sender",
             )
         )

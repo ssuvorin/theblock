@@ -62,6 +62,8 @@ class OpportunityQueryOrchestrator:
             self._repo.upsert_result(result, search.provider, search.disclosure)
             for result in search.results
         ]
+        if not opportunities and search.cache_hit:
+            opportunities = self._already_stored()
         self._session.flush()
         try:
             self._warm_paths.derive(opportunities)
@@ -117,6 +119,17 @@ class OpportunityQueryOrchestrator:
                 "semantic_index": self._semantic_readout(),
             }
         }
+
+    def _already_stored(self) -> list[Opportunity]:
+        """Answer a repeated search from the evidence its first run already stored.
+
+        The credit ledger refuses an identical request as a duplicate and the adapter reports
+        that as a cache hit with no results. Showing an empty screen for a question that was
+        answered minutes ago would be wrong; a genuinely unmatched goal is not a cache hit and
+        still gets the honest empty answer.
+        """
+
+        return self._repo.query_candidates()
 
     def _semantic_readout(self) -> dict[str, object]:
         """Bind the partner read-out to a real chunk count instead of leaving it blank."""
