@@ -227,8 +227,10 @@ export interface ImportWritten {
   interactions_created: number;
   interactions_existing: number;
   participants_created: number;
+  participants_unresolved: number;
   relationships_created: number;
   relationships_updated: number;
+  organizations_created: number;
   contacts_without_title: number;
   self_person_id?: string | null;
   data_origin: string;

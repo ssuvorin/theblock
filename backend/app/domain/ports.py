@@ -38,6 +38,14 @@ class MarketSearchResponse:
     cache_hit: bool = False
 
 
+class MarketSearchUnavailable(RuntimeError):
+    """The public market provider was unreachable or returned an undecodable response.
+
+    Only transport-level failures belong here. Misconfiguration and programming errors must
+    keep propagating, so they are never reported to the owner as a degraded component.
+    """
+
+
 class MarketSearchPort(Protocol):
     def search(self, owner_id: str, goal: Goal, num_results: int = 20) -> MarketSearchResponse:
         """Return bounded public market evidence for one parsed goal."""

@@ -8,7 +8,12 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.domain.ports import Goal, MarketSearchResponse, PublicSearchResult
+from app.domain.ports import (
+    Goal,
+    MarketSearchResponse,
+    MarketSearchUnavailable,
+    PublicSearchResult,
+)
 from app.services.context_credits import ContextCreditLedger
 
 
@@ -60,6 +65,9 @@ class ContextDevWebSearch:
             )
         try:
             body = self._request(payload)
+        except (httpx.HTTPError, ValueError) as error:
+            self._ledger.fail("market_search", request_key)
+            raise MarketSearchUnavailable(f"context.dev request failed: {error}") from error
         except Exception:
             self._ledger.fail("market_search", request_key)
             raise

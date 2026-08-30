@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, has_live_context_key
 from app.connectors.context_dev.synthetic import SyntheticDemoMarketSearch
 from app.connectors.context_dev.web_search import ContextDevWebSearch
-from app.domain.ports import Goal, MarketSearchPort, MarketSearchResponse
+from app.domain.ports import Goal, MarketSearchPort, MarketSearchResponse, MarketSearchUnavailable
 from app.models import Opportunity, Owner
 from app.repositories.opportunities import OpportunityRepository
 from app.repositories.people import PeopleRepository
@@ -32,26 +32,21 @@ class OpportunityQueryOrchestrator:
         goal = DeterministicGoalParser().parse(question)
         try:
             search = self._provider.search(self._owner.id, goal, num_results=20)
-        except Exception:
+        except MarketSearchUnavailable:
             return self._market_degraded(goal)
         opportunities = [
             self._repo.upsert_result(result, search.provider, search.disclosure)
             for result in search.results
         ]
         self._session.flush()
-        try:
-            cards = self._card_list(opportunities, goal)
-        except Exception:
-            cards = [self._public_only_card(item, goal) for item in opportunities]
-            return self._answer(goal, search, cards, degraded_components=["convex"])
+        # Warm paths are read straight from PostgreSQL. A failure here is a defect, not a
+        # degraded component, so it must surface instead of being relabelled as an outage.
+        cards = self._card_list(opportunities, goal)
         cards.sort(key=lambda item: item["ranking_factors"]["score"], reverse=True)
         return self._answer(goal, search, cards)
 
     def _card_list(self, opportunities: list[Opportunity], goal: Goal) -> list[dict]:
         return self._cards.cards(opportunities, goal)
-
-    def _public_only_card(self, opportunity: Opportunity, goal: Goal) -> dict:
-        return self._cards.public_only_card(opportunity, goal)
 
     def _answer(
         self,
