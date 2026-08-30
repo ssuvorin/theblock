@@ -54,6 +54,34 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=64, ge=1, le=256)
     convex_upsert_batch_size: int = Field(default=50, ge=1, le=50)
     semantic_timeout_seconds: float = Field(default=30.0, ge=1.0, le=120.0)
+    encryption_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ENCRYPTION_KEY", "CRM_ENCRYPTION_KEY"),
+    )
+    api_base_url: str = "http://localhost:8000"
+    frontend_base_url: str = "http://localhost:3000"
+    google_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GOOGLE_CLIENT_ID", "CRM_GOOGLE_CLIENT_ID"),
+    )
+    google_client_secret: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GOOGLE_CLIENT_SECRET", "CRM_GOOGLE_CLIENT_SECRET"),
+    )
+    connector_lookback_days: int = Field(default=90, ge=1, le=365)
+    connector_page_limit: int = Field(default=10, ge=1, le=200)
+    connector_batch_size: int = Field(default=100, ge=1, le=500)
+    connector_timeout_seconds: float = Field(default=30.0, ge=1.0, le=120.0)
+    collabute_mcp_url: str = Field(
+        default="https://api.collabute.ai/api/mcp",
+        validation_alias=AliasChoices("COLLABUTE_MCP_URL", "CRM_COLLABUTE_MCP_URL"),
+    )
+    collabute_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("COLLABUTE_CLIENT_ID", "CRM_COLLABUTE_CLIENT_ID"),
+    )
+    collabute_scopes: str = "meeting:read"
+    oauth_state_minutes: int = Field(default=10, ge=1, le=60)
 
 
 def _has_secret(key: SecretStr | None) -> bool:
@@ -64,6 +92,29 @@ def has_live_context_key(settings: Settings) -> bool:
     """An empty or blank CONTEXT_DEV_API_KEY must not count as a configured provider."""
 
     return _has_secret(settings.context_dev_api_key)
+
+
+def has_secret_vault(settings: Settings) -> bool:
+    """Connector tokens are only accepted when there is a key to encrypt them with."""
+
+    return _has_secret(settings.encryption_key)
+
+
+def has_google_oauth(settings: Settings) -> bool:
+    """Google needs a confidential client, so both halves of the client must be present."""
+
+    return bool(
+        settings.google_client_id
+        and settings.google_client_id.strip()
+        and _has_secret(settings.google_client_secret)
+        and has_secret_vault(settings)
+    )
+
+
+def has_collabute(settings: Settings) -> bool:
+    """Collabute is a public PKCE client that registers itself, so only the vault is required."""
+
+    return bool(settings.collabute_mcp_url.strip() and has_secret_vault(settings))
 
 
 def has_semantic_index(settings: Settings) -> bool:

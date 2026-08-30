@@ -9,6 +9,7 @@ description = "Demo-critical Second Brain CRM API"
 requires-python = ">=3.12"
 dependencies = [
   "alembic==1.16.5",
+  "cryptography==50.0.0",
   "fastapi==0.116.1",
   "httpx==0.28.1",
   "psycopg[binary]==3.2.10",

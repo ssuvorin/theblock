@@ -129,6 +129,99 @@ class Relationship(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class SourceSecret(Base):
+    """Ciphertext for one connector credential set, referenced elsewhere by id only.
+
+    Secrets live in their own table so listing connections never loads a token, and so a
+    connection row stays safe to serialise into an API response.
+    """
+
+    __tablename__ = "source_secret"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    purpose: Mapped[str] = mapped_column(String(50))
+    ciphertext: Mapped[str] = mapped_column(Text)
+    key_fingerprint: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class SourceConnection(Base):
+    __tablename__ = "source_connection"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "source", "external_account_id"),
+        CheckConstraint(
+            "status IN ('disconnected','authorizing','connected','syncing',"
+            "'degraded','reauth_required','error')",
+            name="ck_source_connection_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    source: Mapped[str] = mapped_column(String(50), index=True)
+    external_account_id: Mapped[str] = mapped_column(String(320), default="")
+    status: Mapped[str] = mapped_column(String(30), default="disconnected")
+    auth_ref: Mapped[str | None] = mapped_column(ForeignKey("source_secret.id"))
+    scopes: Mapped[list] = mapped_column(JSON, default=list)
+    capabilities: Mapped[dict] = mapped_column(JSON, default=dict)
+    sync_cursor: Mapped[dict] = mapped_column(JSON, default=dict)
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    consent_granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OAuthAuthorization(Base):
+    """One in-flight authorization attempt, which is what makes the callback safe.
+
+    Only the hash of the ``state`` nonce is stored, so reading this table does not let an
+    attacker replay a callback, and the row carries the owner so the callback needs no session.
+    """
+
+    __tablename__ = "oauth_authorization"
+    __table_args__ = (UniqueConstraint("state_hash"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    source: Mapped[str] = mapped_column(String(50))
+    state_hash: Mapped[str] = mapped_column(String(64), index=True)
+    redirect_uri: Mapped[str] = mapped_column(Text)
+    secret_ref: Mapped[str | None] = mapped_column(ForeignKey("source_secret.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SyncRun(Base):
+    __tablename__ = "sync_run"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running','succeeded','partial','failed')",
+            name="ck_sync_run_status",
+        ),
+        Index("idx_sync_run_connection", "source_connection_id", "started_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    source_connection_id: Mapped[str] = mapped_column(ForeignKey("source_connection.id"))
+    mode: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    processed: Mapped[int] = mapped_column(Integer, default=0)
+    skipped: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[int] = mapped_column(Integer, default=0)
+    counters: Mapped[dict] = mapped_column(JSON, default=dict)
+    cursor_before: Mapped[dict] = mapped_column(JSON, default=dict)
+    cursor_after: Mapped[dict] = mapped_column(JSON, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class InteractionEvent(Base):
     __tablename__ = "interaction_event"
     __table_args__ = (
@@ -141,6 +234,7 @@ class InteractionEvent(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    source_connection_id: Mapped[str | None] = mapped_column(ForeignKey("source_connection.id"))
     external_id: Mapped[str] = mapped_column(String(255))
     type: Mapped[str] = mapped_column(String(50))
     source: Mapped[str] = mapped_column(String(50), index=True)
