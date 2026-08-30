@@ -1,73 +1,15 @@
----
-name: Career Brain — Mono Ether
-tagline: Your network, working for your career.
-canonical_theme: dark
-supersedes:
-  - CRM Brain / Mono Ether (light-only Stitch export)
-  - mockups/BRANDBOOK.md (design-session export, kept for provenance)
-colors-dark:
-  bg: '#0a0b0d'
-  lowest: '#111316'
-  low: '#16181b'
-  cont: '#1a1d21'
-  high: '#232629'
-  hi2: '#2c3035'
-  fg: '#f3f4f6'
-  fgv: '#d2beb2'
-  mut: '#9a9ca4'
-  bd: '#34373d'
-  bds: '#f3f4f6'
-  acc: '#ff6b00'
-  accL: '#ff9a52'
-  wash: 'rgba(255,107,0,0.14)'
-  pos: '#56d99a'
-  err: '#ffb4ab'
-  idle: '#5e5e5e'
-colors-light:
-  bg: '#f9f9f9'
-  lowest: '#ffffff'
-  low: '#f3f3f3'
-  cont: '#eeeeee'
-  high: '#e8e8e8'
-  hi2: '#e2e2e2'
-  fg: '#1a1c1c'
-  fgv: '#5a4136'
-  mut: '#8a8a8a'
-  bd: '#e5e5e5'
-  bds: '#1a1c1c'
-  acc: '#ff6b00'
-  accL: '#a04200'
-  wash: 'rgba(255,107,0,0.08)'
-  pos: '#1f7a45'
-  err: '#ba1a1a'
-  idle: '#9a9999'
-typography:
-  display: { family: Inter, size: 48px, weight: '600', lineHeight: '1.1', tracking: -0.03em }
-  headline: { family: Inter, size: 36px, weight: '600', lineHeight: '1.2', tracking: -0.03em }
-  headline-md: { family: Inter, size: 24px, weight: '600', lineHeight: '1.3', tracking: -0.02em }
-  title: { family: Inter, size: 19px, weight: '600', lineHeight: '1.3', tracking: -0.02em }
-  body: { family: Inter, size: 14px, weight: '400', lineHeight: '1.5' }
-  label-caps: { family: Inter, size: 12px, weight: '700', lineHeight: '1.0', tracking: 0.06em, transform: uppercase }
-  mono-data: { family: JetBrains Mono, size: 12px, weight: '400', lineHeight: '1.0', tracking: 0.12em }
-spacing: { base: 4px, xs: 4px, sm: 8px, md: 16px, lg: 24px, xl: 48px, gutter: 16px, edge: 24px }
-radius: { sm: 2px, DEFAULT: 4px, lg: 8px, full: 9999px, container: 0px }
----
+# Career Brain — Brand book
 
-# Career Brain — design system
+> **Provenance copy.** This is the brand book as it came out of the design session
+> that produced the canvas in this directory. The canonical design system lives at
+> [`../DESIGN.md`](../DESIGN.md), which merges this document with the earlier
+> light-theme Mono Ether system. Where the two disagree, `DESIGN.md` wins; this file
+> is kept so the export stays intact and reviewable.
 
 **Product:** Career Brain — network-first job search
 **Tagline:** Your network, working for your career.
-**Status:** hackathon build · **dark is canonical**, light is the fallback
-
-Mono Ether: technocratic brutalism. Information density over decoration, structure
-carried by 1px borders, one saturated colour reserved for action.
-
-> **This file supersedes two earlier documents.** The original light-only Mono Ether
-> export (product name "CRM Brain") is retired — its light ramp and scales survive
-> here, nothing else. `mockups/BRANDBOOK.md` is the design-session export and is kept
-> for provenance; where the two disagree, this file wins. Token names and dark values
-> here match `mockups/Second Brain Mockups.dc.html` exactly, so the canvas, the docs
-> and any implementation stay in step.
+**Design system:** Mono Ether — technocratic brutalism, dark-first
+**Status:** hackathon build · dark theme is canonical, light is fallback
 
 ---
 
@@ -80,7 +22,6 @@ One line for judges: *a job search engine tells you who is hiring, a CRM tells y
 you know — this connects both.*
 
 ### Voice
-
 Matter-of-fact, technical, no hype. Copy names the job a thing does, never the vendor
 behind it. No exclamation marks, no "powered by AI", no emoji. Interface labels are
 uppercase and short; body prose is plain sentences.
@@ -93,7 +34,7 @@ Single point of saturation: **Safety Orange `#FF6B00`**. Everything else is a gr
 ramp. Orange marks the primary action, the live state and the introduction path — a
 second filled orange element in one region is a bug.
 
-### Dark theme (canonical)
+### Dark theme (canonical — used in every deliverable)
 
 | Token | Value | Use |
 |---|---|---|
@@ -118,25 +59,10 @@ second filled orange element in one region is a bug.
 Promo frames sit one step deeper: background `#0A0B0D`, card `#131518`, border
 `#34373D`. Never crush to pure black — video compression eats it.
 
-### Light theme (fallback)
-
-| Token | Value | Token | Value |
-|---|---|---|---|
-| `--bg` | `#F9F9F9` | `--bd` | `#E5E5E5` |
-| `--lowest` | `#FFFFFF` | `--bds` | `#1A1C1C` |
-| `--low` | `#F3F3F3` | `--acc` | `#FF6B00` |
-| `--cont` | `#EEEEEE` | `--accL` | `#A04200` |
-| `--high` | `#E8E8E8` | `--wash` | `rgba(255,107,0,0.08)` |
-| `--hi2` | `#E2E2E2` | `--pos` | `#1F7A45` |
-| `--fg` | `#1A1C1C` | `--err` | `#BA1A1A` |
-| `--fgv` | `#5A4136` | `--idle` | `#9A9999` |
-| `--mut` | `#8A8A8A` | | |
-
-Both themes define the complete set — no token is defined in only one of them, which
-is what makes the theme flip a single attribute.
-
-**Relationship heat** rides entirely on this scale: orange is alive, `--idle` grey is
-gone cold. Never introduce a second hue for it.
+### Light theme (secondary)
+`--bg #F9F9F9` · `--lowest #FFFFFF` · `--low #F3F3F3` · `--high #E8E8E8` ·
+`--fg #1A1C1C` · `--fgv #5A4136` · `--mut #8A8A8A` · `--bd #E5E5E5` ·
+`--acc #FF6B00` · `--accL #A04200` (darker, for contrast on white).
 
 ---
 
@@ -164,22 +90,19 @@ frame. Two type sizes per screen region, no more.
 
 ## 4. Layout
 
-- **8px rhythm** on a 4px base scale (`4 · 8 · 16 · 24 · 48`). Frame padding 24px,
-  card padding 16–24px, inter-element 12–16px.
-- Structure is drawn with **1px `--bd` borders**, not whitespace and never shadows.
+- 8px grid. Frame padding 24px, card padding 16–24px, inter-element 12–16px.
+- Structure is drawn with **1px `--bd` borders**, not whitespace or shadows.
 - Shell: sidebar 240px (rail 64px), top bar 56px, right rail 320px.
 - Product frames 1440×900; promo frames 16:9 (1440×810, exported 2×).
 - Demo and pitch frames centre their content column (1060–1120px) inside the frame;
-  utility screens stay left-aligned and document-like.
+  utility screens stay left-aligned.
 
 ### Shape
-
 Containers 0px radius. Buttons, inputs, chips 4px. Avatars and status dots round.
 
 ### Elevation
-
-No shadows, ever. Hierarchy comes from the grey ramp and 1px borders. Overlays are cut
-out with a high-contrast border, not floated with a shadow.
+No shadows, ever. Hierarchy comes from the grey ramp and 1px borders. Overlays are
+cut out with a high-contrast border, not floated with a shadow.
 
 ---
 
@@ -192,20 +115,14 @@ out with a high-contrast border, not floated with a shadow.
 - **Card** — 1px `--bd`, `--lowest` fill, header row with a bottom rule.
 - **Signal card** — 3px left border: orange for follow-up and cold, green for
   opportunity.
-- **Relationship meter** — 6px track on `--hi2`, orange fill, mono value. Cold
-  relationships use `--idle`, not orange.
+- **Relationship meter** — 6px track on `--hi2`, orange fill, mono value.
+  Cold relationships use `--idle`, not orange.
 - **Data table** — 1px horizontal rules only, zebra with `--low`, mono for dates and
   source chips.
 - **Empty state** — dashed 1px border on `--low`, so it never reads as real content.
 - **Graph** — nodes sized by relationship strength, avatar inside the node, orange
   ring on path members, white ring on you. Edges 1px `--bd`; the introduction path is
   a dashed orange edge with a soft glow.
-
-### Icons
-
-Thin-stroke line art on an 18px grid, 1.5px stroke, `currentColor`. No filled icons
-except status dots. Channel glyphs are monochrome — colour appears only as an 8px
-status dot beside them.
 
 ---
 
@@ -225,18 +142,14 @@ animates, skeletons never shimmer.
 
 ---
 
-## 7. Imagery and avatars
+## 7. Imagery
 
-- **Photographic faces are the default**, as shipped in `mockups/design/avatars/`.
-  Square crops, head centred in the upper 60%, slight warm-neutral grade so they sit
-  in the dark UI. Circular masks.
+- Faces only, square crops, head centred in the upper 60%, slight warm-neutral grade
+  so they sit in the dark UI. Circular masks.
 - Avatar sizes: 28px (table), 32px (nav), 40–44px (card), 64px (profile hero),
   44–88px (graph nodes).
-- **Every avatar is a drop target** — a real photo replaces a placeholder at any time.
-- Where no photo exists, fall back to a generated mark rather than a stock face: a
-  person the system reconstructed from email metadata has no portrait, and inventing a
-  realistic one claims knowledge the product does not have.
 - No illustration, no stock office scenes, no 3D, no gradient meshes.
+- Every avatar is a drop target — real photos can replace a placeholder at any time.
 
 ---
 
@@ -279,49 +192,12 @@ disagree, the Person profile frame wins.
 
 ## 10. Logo
 
-The mark is a **relationship graph in the shape of a brain** — the product taken
-literally. The back of the head is the network you already have, drawn in the grey
-ramp (`#585D66` dark / `#B4B4B4` light for the web, `--mut` for the nodes). The
-frontal lobe is the path the system found, in `--acc`. Flat: no glow, no gradient, no
-bevel, no shadow — a logo that breaks its own system never sits right on a screen
-built from that system.
+Wordmark: **Career Brain**, Inter 600, `-0.035em`, `--fg`, with a 4px `--acc` rule
+under it and the tagline *Your network, working for your career.* below in `--fgv`. An orange
+square (20–44px) can precede the wordmark as the mark. Minimum clear space equals the
+cap height. Never on a busy image, never in another colour, never outlined.
 
-> The edge tone is deliberately not `--bd`. That token is a UI separator and
-> disappears against `--bg` at logo scale; the silhouette falls apart with it.
-
-**Primary lockup:** mark, then the wordmark **Career Brain** in Inter 600 at
-`-0.035em` in `--fg`, a 4px `--acc` rule beneath it, and the tagline
-*Your network, working for your career.* in `--fgv`. Minimum clear space on every side
-equals the wordmark's cap height.
-
-**Variants** — all in dark and light, under `logo/`:
-
-| File | Use |
-|---|---|
-| `career-brain-horizontal-*` | Primary. Default wherever there is horizontal room. |
-| `career-brain-horizontal-compact-*` | Top bars — no rule, no tagline. |
-| `career-brain-stacked-*` | Square placements: covers, slide title cards, avatars. |
-| `career-brain-mark-*` | Mark alone, when the name is already on screen. |
-| `career-brain-wordmark-*` | Type only. The one place the split colour is allowed. |
-| `career-brain-appicon-*` | 180px rounded square, full mark. |
-| `career-brain-monogram-*` | `CB` in a rounded square. |
-| `career-brain-favicon-*` | Reduced mark. |
-
-**Sizes.** 48px and up use the full mark. 24–32px use the reduced mark — a different
-drawing, not a scaled copy: the closed silhouette plus one orange triangle in the
-frontal lobe. The inner web is dropped rather than shrunk, because compressed it reads
-as a split rather than a brain. Below 24px use the `CB` monogram.
-
-**The split-colour wordmark** — `Career` in `--fg`, `Brain` in `--acc` — exists only
-for placements that carry no mark. Never set it beside the mark: that is two filled
-oranges in one region, which §11 forbids.
-
-**Never** recolour the hemispheres (grey is the network you have, orange is the path
-found — swapping them inverts the product's claim), add depth of any kind, stretch,
-rotate, outline, or place the mark on a busy image.
-
-Regenerate the whole kit with `node build-logo.mjs`; `logo/index.html` is the sheet
-with clear space, small sizes and don'ts.
+---
 
 ## 11. Don'ts
 
