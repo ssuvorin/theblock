@@ -10,14 +10,22 @@ from __future__ import annotations
 import httpx
 import pytest
 from app.config import Settings
+from app.connectors.context_dev.web_search import ContextDevWebSearch
 from app.domain.ports import Goal, MarketSearchPort, MarketSearchResponse, MarketSearchUnavailable
-from app.models import Owner
+from app.models import ContextCreditUsage, Owner
 from app.services.query.orchestrator import OpportunityQueryOrchestrator
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 QUESTION = "Product Manager role at a crypto company in Dubai"
+_GOAL = Goal(
+    role="Product Manager",
+    related_roles=[],
+    industry=["crypto"],
+    location=["Dubai"],
+    action="find_role",
+)
 
 
 class _FailingProvider:
@@ -73,6 +81,38 @@ def test_defects_are_not_reported_as_degradation(
     orchestrator, session = _orchestrator(client, settings, _FailingProvider(error))
     with session, pytest.raises(type(error)):
         orchestrator.execute(QUESTION)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [httpx.ConnectError("refused"), TypeError("unexpected payload"), RuntimeError("boom")],
+)
+def test_reserved_credits_are_always_refunded_when_the_call_fails(
+    client: TestClient,
+    settings: Settings,
+    error: Exception,
+) -> None:
+    """Cleanup must be broad: any failure has to release the reservation, not just known ones."""
+
+    session = client.app.state.database.session_factory()
+    with session:
+        owner = session.scalar(select(Owner))
+        search = ContextDevWebSearch(session, settings)
+        search._request = _raising(error)
+        before = search._ledger.snapshot()["credits_used"]
+        with pytest.raises(Exception):  # noqa: B017 - the type is the parametrised input
+            search.search(owner.id, _GOAL)
+        usage = session.scalars(select(ContextCreditUsage)).all()
+        assert [row.status for row in usage] == ["failed"]
+        assert search._ledger.snapshot()["credits_used"] == before
+
+
+def _raising(error: Exception):
+    def _call(payload: dict) -> dict:
+        del payload
+        raise error
+
+    return _call
 
 
 def test_transport_failures_become_market_search_unavailable(settings: Settings) -> None:

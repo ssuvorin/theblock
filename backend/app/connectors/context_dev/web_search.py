@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import math
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -15,6 +16,8 @@ from app.domain.ports import (
     PublicSearchResult,
 )
 from app.services.context_credits import ContextCreditLedger
+
+logger = logging.getLogger(__name__)
 
 
 class WebSearchRequestBuilder:
@@ -66,10 +69,13 @@ class ContextDevWebSearch:
         try:
             body = self._request(payload)
         except (httpx.HTTPError, ValueError) as error:
-            self._ledger.fail("market_search", request_key)
+            self._release(request_key, "context.dev market search transport or decode failure")
             raise MarketSearchUnavailable(f"context.dev request failed: {error}") from error
-        except Exception:
-            self._ledger.fail("market_search", request_key)
+        except BaseException:
+            # Releasing credits is cleanup, so it must stay broad. Narrowing this clause only
+            # loses the refund: an unlisted error would strand the reservation as "reserved"
+            # forever and quietly shrink the budget. The re-raise keeps the failure visible.
+            self._release(request_key, "context.dev market search failed before a usable response")
             raise
         consumed = self._credits_consumed(body, estimate)
         self._ledger.reconcile("market_search", request_key, consumed)
@@ -84,6 +90,12 @@ class ContextDevWebSearch:
                 "until source checks pass."
             ),
         )
+
+    def _release(self, request_key: str, message: str) -> None:
+        """Log the failure and return the reserved credits, never logging the API key."""
+
+        logger.exception(message)
+        self._ledger.fail("market_search", request_key)
 
     def _request(self, payload: dict) -> dict:
         key = self._settings.context_dev_api_key
