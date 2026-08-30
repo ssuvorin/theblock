@@ -8,9 +8,12 @@
 
 - [x] Core user problem, primary persona, and user value are explicit.
 - [x] P0, stretch, post-hackathon, and out-of-scope work are separated.
-- [x] Two required demo pipelines are defined with live-vs-fallback rules.
+- [x] Two required demo pipelines and the canonical `demo.md` presentation flow are defined with live-vs-fallback rules.
+- [x] The Dubai Product Manager demo starts with bounded Context.dev vacancy search, then connects public opportunities to helpful people and warm paths in the owner’s network.
+- [x] Verified open roles, weaker hiring signals, stale results, and no-warm-path opportunities have explicit evidence rules.
 - [x] Telegram cannot block P0; LinkedIn is no longer ambiguously both in scope and roadmap-only.
-- [x] Screenshots, full document content, media, outreach, and external opportunity discovery have explicit scope decisions.
+- [x] Screenshots, full document content, media, automatic sending/applications, and continuous opportunity monitoring have explicit scope decisions.
+- [x] Relationship-grounded draft/edit/copy/reminder actions are included without automatic sending.
 - [x] Sponsor integrations are tied to product value rather than isolated demonstrations.
 
 ## Requirements and Acceptance
@@ -24,7 +27,7 @@
 
 ## Data Model and Consistency
 
-- [x] Owner, source identity/provenance, multi-participant interactions, employment history, documents, memory facts, merge ledger, sync runs, and semantic chunks are modeled.
+- [x] Owner, source identity/provenance, multi-participant interactions, employment history, documents, memory facts, merge ledger, sync runs, semantic chunks, market searches, opportunities, public evidence, and opportunity-person paths are modeled.
 - [x] A first-class `Document` model supports the NDA demo.
 - [x] Reversible merges are implementable without destroying source records.
 - [x] PostgreSQL is canonical and Convex is derived semantic state with an explicit durable handoff, update, tombstone, and reindex model.
@@ -41,7 +44,7 @@
 - [x] Convex is in the critical path of every evaluated network query and owns chunk retrieval/citation metadata.
 - [x] OpenRouter embedding model and vector dimension are pinned; model migration requires reindexing.
 - [x] Google initial/delta sync, bounded recovery, readonly scopes, and testing-mode constraints are specified.
-- [x] Context.dev credit budget, caching, `NOT_FOUND`, and rate-limit behavior are specified.
+- [x] Context.dev `/web/search` and `/brand/retrieve` contracts, opportunity verification, credit allocation, caching, `NOT_FOUND`, and rate-limit behavior are specified.
 
 ## Privacy, Security, and Operations
 
@@ -59,5 +62,5 @@
 
 ## Readiness Decision
 
-- [x] Specification is ready for `/speckit-plan`; the plan must begin with validation spikes for authenticated Collabute `tools/list`, Google test OAuth, the sanitized pinned Evolution build, and Convex/OpenRouter/Context.dev credentials before feature implementation is considered unblocked.
-- [x] `/speckit-plan` must preserve the P0/P1 boundary and must not promote Telegram, LinkedIn, raw media, or full document indexing into the critical path.
+- [x] Specification, research, data model, contracts, quickstart, and implementation plan are ready for `/speckit-tasks`; tasks must begin with validation spikes for authenticated Collabute `tools/list`, Google test OAuth, the sanitized pinned Evolution build, and live Convex/OpenRouter/Context.dev preflight.
+- [x] `/speckit-tasks` must preserve the P0/P1 boundary, the opportunity-first `demo.md` flow, and must not promote Telegram, LinkedIn scraping, raw media, full document indexing, automatic sending, or continuous vacancy monitoring into the critical path.

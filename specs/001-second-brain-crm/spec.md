@@ -2,7 +2,7 @@
 
 ## Overview
 
-Second Brain is a personal relationship-memory system that collects evidence from fragmented communication channels, resolves identities, builds a relationship graph, and answers natural-language questions about the user's own network with traceable citations.
+Second Brain is a personal relationship-memory system that collects evidence from fragmented communication channels, resolves identities, builds a relationship graph, and answers natural-language questions with traceable citations. The primary hackathon scenario starts from a current job goal, discovers public opportunities, and connects them to people and warm paths in the user’s own network.
 
 The hackathon deliverable is a reusable skeleton plus two real end-to-end demo pipelines. Gmail, Google Calendar/Drive metadata, WhatsApp through Evolution API, Collabute through its Coding Tools MCP endpoint, Context.dev, PostgreSQL, Convex, and OpenRouter are used in the working product rather than shown as disconnected sponsor demos.
 
@@ -16,10 +16,11 @@ PostgreSQL is the canonical store for identities, relationships, source provenan
 - Gmail OAuth, one or more Google accounts, Calendar events, and Drive document metadata.
 - WhatsApp QR connection, bounded history import, and new-message ingestion through a self-hosted Evolution API instance.
 - Collabute OAuth and Streamable HTTP MCP integration for recent meeting context and action items.
-- Context.dev organization enrichment for a bounded set of demonstrated companies.
+- Context.dev organization enrichment plus bounded, goal-triggered web search for current vacancies and hiring signals with public URL citations.
+- Owner-supplied LinkedIn data-export import for real conversation history and profile-URL identities, with no LinkedIn login or scraping.
 - Identity resolution, reversible merge review, relationship graph, unified profile, and follow-up dashboard.
-- Convex semantic indexing, graph-assisted network query, and source citations.
-- Two repeatable demo pipelines defined in FR-16.
+- Convex semantic indexing, graph-assisted network query, source citations, and relationship-grounded message drafts without automatic sending.
+- Two repeatable demo pipelines defined in FR-16 and presented through the canonical flow in `demo.md`.
 
 ### P1 — Stretch goals; not part of demo success criteria
 
@@ -30,7 +31,7 @@ PostgreSQL is the canonical store for identities, relationships, source provenan
 
 ### Post-hackathon
 
-LinkedIn, Outlook, X, Instagram, Snapchat, external opportunity discovery, outreach, multi-user tenancy, billing, and commercial operations.
+LinkedIn, Outlook, X, Instagram, Snapchat, continuous opportunity monitoring, automated applications/outreach, multi-user tenancy, billing, and commercial operations.
 
 ## Users / Personas
 
@@ -54,9 +55,9 @@ Judges should see one coherent story: fragmented relationship data becomes a tru
 
 **Given** a test person appears in Gmail, WhatsApp, Calendar, Drive metadata, and a recent Collabute meeting, **when** the required syncs complete and an ambiguous merge is approved, **then** the product shows one profile containing a chronological cross-source timeline, organization/role, source badges, linked NDA metadata, meeting evidence, and follow-ups without duplicate interactions.
 
-### US-2 [P0]: Ask who can make an introduction
+### US-2 [P0]: Find people who can help with a current goal
 
-**Given** at least five contacts have relevant interaction evidence and relationship edges, **when** the owner asks “Who could introduce me to Web3 investors?”, **then** the product returns a ranked list with relationship context, last contact, relevance explanation, suggested next action, and clickable citations for every factual relationship claim. If evidence is insufficient, the answer says so instead of inventing a contact or path.
+**Given** contacts have interaction evidence relevant to crypto product work, Dubai/UAE, team growth, or introductions, **when** the owner asks “I’m looking for a Product Manager role at a crypto company in Dubai. Who in my network could help, which warm paths should I follow, and which relevant companies are hiring now?”, **then** the product searches private relationship memory and performs a bounded Context.dev web search. It returns ranked people and cited public opportunities, links opportunities to known organizations/contacts where evidence exists, distinguishes verified open roles from weaker hiring signals, and returns honest partial/no-result states when either evidence set is insufficient.
 
 ### US-3 [P0]: Turn a Collabute meeting into relationship memory
 
@@ -135,12 +136,16 @@ The integration contract is validated against Evolution API `2.3.7`, source comm
 - FR-4.7: OAuth 401/403 states require visible reauthorization; rate limits and temporary failures use bounded exponential backoff and preserve the prior successful sync.
 - FR-4.8: For the free-tier demo, the meeting fixture MUST be recent enough for the available context-history window and prepared before demo preflight.
 
-### FR-5: Context.dev organization enrichment
+### FR-5: Context.dev organization enrichment and market search
 
 - FR-5.1: Enrichment MUST target an `Organization`, not overwrite unverified person fields, and run only when a normalized work domain is available or the owner explicitly requests it.
-- FR-5.2: The adapter uses `POST /brand/retrieve` and stores returned brand title/domain, description, logo, socials, address, and industry classifications with provider provenance and retrieval time.
-- FR-5.3: `NOT_FOUND` is a normal terminal result; HTTP 429 uses bounded backoff; successful results and misses are cached for at least 24 hours.
-- FR-5.4: The hackathon budget is capped at 50 successful brand retrievals under the assumed 500-credit allocation and current 10-credit successful-call cost. Batch enrichment of the whole network is prohibited.
+- FR-5.2: The brand adapter uses `POST /brand/retrieve` and stores returned brand title/domain, description, logo, socials, address, and industry classifications with provider provenance and retrieval time.
+- FR-5.3: Brand `NOT_FOUND` is a normal terminal result; HTTP 429 uses bounded backoff; successful results and misses are cached for at least 24 hours.
+- FR-5.4: When a goal explicitly asks for current companies/roles, the market-search adapter MUST call Context.dev `POST /web/search` with a bounded natural-language query, 10–30 results, UAE country localization where applicable, and an explicit freshness window.
+- FR-5.5: Search results MUST retain query parameters, URL, title, source domain, excerpt/Markdown when requested, publication date when available, discovered/checked timestamps, provider cache metadata, and credits consumed.
+- FR-5.6: A result is labeled `verified_open_role` only when a currently accessible public source explicitly identifies the role, company, relevant location/remote eligibility, and an open application or vacancy state. Careers pages, expansion/funding announcements, and ambiguous snippets are labeled `hiring_signal` or `unverified`, never confirmed vacancies.
+- FR-5.7: P0 prioritizes first-party company careers pages and public ATS pages. It MUST NOT log in to, scrape, or automate LinkedIn; a LinkedIn URL may be shown only as an external citation returned by search and is not scraped for verification.
+- FR-5.8: Context.dev usage MUST be controlled by a credit ledger. Under the assumed 500 credits, P0 reserves at most 200 credits for 20 successful brand retrievals, at most 100 credits for bounded web searches, and at least 200 credits as demo/retry reserve. Batch enrichment or continuous market crawling is prohibited.
 
 ### FR-6: Identity resolution and merge safety
 
@@ -153,11 +158,11 @@ The integration contract is validated against Evolution API `2.3.7`, source comm
 
 ### FR-7: Relationship graph and memory
 
-- FR-7.1: The graph MUST support person-to-person relationships, person-to-organization employments, interactions with multiple participants, introducer paths, documents, facts, and follow-ups.
+- FR-7.1: The graph MUST support person-to-person relationships, person-to-organization employments/affiliations, interactions with multiple participants, introducer paths, documents, facts, follow-ups, and links from public opportunities to resolved organizations and known people.
 - FR-7.2: A relationship strength score MUST expose its recency, frequency, channel-diversity, and explicit-owner-adjustment components; the score is advisory and never presented as objective truth.
 - FR-7.3: `active`, `cold`, and `dormant` states MUST be derived from an owner-configurable inactivity threshold, default 90 days, and may be manually overridden.
 - FR-7.4: Personal updates, needs, promises, decisions, and interests MAY be stored as `MemoryFact` suggestions only when tied to cited evidence. Sensitive facts are not inferred from absence or protected attributes.
-- FR-7.5: Graph traversal for introductions MUST return an evidence-backed path. Shared employment alone may suggest relevance but MUST NOT be stated as proof that an introduction is possible.
+- FR-7.5: Graph traversal for introductions or opportunity access MUST return an evidence-backed path. Shared employment alone may suggest relevance but MUST NOT be stated as proof that an introduction is possible. Opportunity-to-organization resolution uses normalized domains first and explicit reviewed matching otherwise.
 
 ### FR-8: Convex semantic memory and RAG
 
@@ -172,12 +177,14 @@ The integration contract is validated against Evolution API `2.3.7`, source comm
 
 ### FR-9: Natural-language network query
 
-- FR-9.1: The owner enters a goal or question; the query service retrieves semantic evidence from Convex, expands candidate paths through the canonical graph, ranks candidates, and synthesizes an answer through OpenRouter.
-- FR-9.2: Default ranking MUST combine semantic relevance, evidence-backed graph path, relationship strength, and recency. The response exposes the principal factors rather than only an opaque score.
-- FR-9.3: Each result contains person, current known role, last interaction, relevance reason, relationship/intro path when available, suggested action, confidence band, and citations.
-- FR-9.4: Every factual claim about a relationship, meeting, role, promise, or topic MUST cite one or more source records. Context.dev company facts are labeled external enrichment, not relationship evidence.
-- FR-9.5: The answer MUST distinguish “known from evidence,” “inferred,” and “unknown,” and MUST prefer an explicit no-result response over unsupported recommendations.
-- FR-9.6: The service MUST never send a message or contact anyone as a side effect of a query.
+- FR-9.1: The owner enters a job-search goal; the query service parses role/industry/location/action, first performs a bounded Context.dev market search for public opportunities, resolves their organizations, then retrieves private semantic evidence from Convex and expands canonical graph paths to find people who can help with those opportunities.
+- FR-9.2: People ranking MUST combine semantic relevance, evidence-backed graph path, relationship strength, and recency. Opportunity ranking MUST combine goal fit, evidence quality/freshness, organization resolution, and warm-path quality. Both expose principal factors rather than only opaque scores.
+- FR-9.3: A people result contains person, current known role, last interaction, relevance reason, relationship/intro path, suggested action, confidence band, and private-source citations.
+- FR-9.4: An opportunity result contains role/signal, organization, location, verification status, source/check timestamps, public URL citations, matching known people/paths when available, and suggested action.
+- FR-9.5: Every factual relationship claim MUST cite imported private evidence; every vacancy/hiring claim MUST cite public Context.dev search evidence. Context.dev brand facts are labeled external enrichment and are not relationship evidence.
+- FR-9.6: The answer MUST distinguish `verified_open_role`, `hiring_signal`, `unverified`, and `unknown`, and MUST prefer explicit partial/no-result responses over unsupported recommendations. Market-search failure does not suppress valid network-only results.
+- FR-9.7: For a recommended person or opportunity path, the owner MAY request an editable message or introduction-request draft grounded in cited relationship context and the current goal.
+- FR-9.8: P0 draft actions are edit, copy, safe handoff to an external client, reminder, saved opportunity, and follow-up creation. The service MUST never send a message, apply for a role, or contact anyone as a side effect of a query or draft action.
 
 ### FR-10: Follow-up intelligence
 
@@ -216,6 +223,19 @@ The integration contract is validated against Evolution API `2.3.7`, source comm
 - FR-14.2: Even though P0 is single-owner, every canonical and semantic record MUST carry `owner_id` so cross-owner leakage cannot be introduced accidentally.
 - FR-14.3: Connector tokens, Telethon sessions, Evolution keys, Collabute tokens, and OpenRouter/Context.dev keys MUST remain server-side in encrypted secret storage referenced by `auth_ref`, never embedded in ordinary entity JSON.
 
+### FR-17: LinkedIn data-export importer
+
+- FR-17.1: The owner MAY upload a LinkedIn data-export archive. The product MUST NOT log in to LinkedIn, automate it, or scrape profiles; the archive is the only LinkedIn ingress.
+- FR-17.2: The importer MUST implement the common `SourceConnector` contract as a file-based source with no OAuth, webhook, or cursor semantics.
+- FR-17.3: `messages.csv` is the primary artifact and MUST be parsed with a CSV reader that tolerates quoted embedded newlines and large fields. Record counts MUST be derived from parsed rows, never from line counts.
+- FR-17.4: Canonicalized LinkedIn profile URLs are high-trust deterministic identifiers under FR-6.2. Message rows with no profile URL MUST NOT be matched on display name alone.
+- FR-17.5: Because the Basic export contains no `Connections.csv`, LinkedIn relationships MUST be derived from message evidence. Invitation records MUST NOT create people; they may only supply identity hints and weak edges corroborated by an actual conversation.
+- FR-17.6: Rows with empty message content are retained as interactions but MUST NOT produce semantic chunks.
+- FR-17.7: Timestamp parsing MUST handle the archive's distinct per-file formats explicitly and MUST NOT infer a timezone that the file does not state.
+- FR-17.8: Advertising, learning, media, receipt, and job-alert files MUST NOT be imported.
+- FR-17.9: Idempotency uses a deterministic content-derived external ID, since the archive supplies no per-message identifier. Re-importing an unchanged archive is a no-op.
+- FR-17.10: The demo corpus MUST be a synthetic archive generated in the same export schema, so the demo and a real import share one ingestion path. Every person and interaction MUST record a data origin of `synthetic`, `real_import`, or `live_connector`; in demo mode the product MUST refuse to serve `real_import` records. Archives MUST NOT be committed to the repository.
+
 ### FR-15: Optional Telegram stretch connector
 
 - FR-15.1: Telegram is not required for hackathon success and MUST NOT delay either P0 pipeline.
@@ -237,11 +257,12 @@ The integration contract is validated against Evolution API `2.3.7`, source comm
 #### Pipeline B — Meeting evidence to network action
 
 1. Connect Collabute through human OAuth and MCP tool discovery.
-2. Import one recent meeting with participants, decision, and action item.
-3. Resolve a participant and create one cited follow-up.
-4. Enrich one participant organization through Context.dev.
-5. Ask “Who could introduce me to Web3 investors?”
-6. Show Convex retrieval, graph path/ranking factors, a ranked answer, and clickable citations.
+2. Import one recent meeting with participants, decision, and action item; resolve a participant and create one cited follow-up.
+3. Ask “I’m looking for a Product Manager role at a crypto company in Dubai. Which relevant companies are hiring now, who in my network could help, and which warm paths should I follow?”
+4. First run a bounded Context.dev `/web/search` for relevant Dubai/UAE roles, verify public evidence, and enrich resolved organizations through `/brand/retrieve` within the shared credit budget.
+5. Then retrieve Convex relationship evidence for the discovered companies/goal, aggregate it by person, and expand canonical graph paths.
+6. Rank opportunities first, attach known people/warm paths, and show separate public vacancy citations and private relationship citations.
+7. Generate an editable relationship-grounded draft, then demonstrate copy, saved opportunity, or reminder creation without sending.
 
 A pre-synced snapshot produced by these real connectors MAY be used only as a clearly disclosed fallback after a live external outage; fabricated connector responses MUST NOT be presented as live.
 
@@ -252,7 +273,7 @@ A pre-synced snapshot produced by these real connectors MAY be used only as a cl
 - With the demo corpus, profile and directory views reach usable content in <2 seconds at p95 over 20 warm runs.
 - A valid Evolution `MESSAGES_UPSERT` is durably visible in the timeline in <3 seconds at p95; semantic searchability follows in <60 seconds at p95.
 - A Gmail delta of 100 text messages is durably normalized in <2 minutes, excluding provider throttling; indexing progress may continue asynchronously.
-- A network query returns or times out with a recoverable error in <10 seconds at p95 over 20 prepared evaluation queries.
+- Private network retrieval returns in <10 seconds at p95 over 20 prepared queries. The opportunity-first combined answer completes in <30 seconds at p95 or returns a visible partial result while bounded market verification continues.
 
 ### NFR-2: Security and privacy
 
@@ -296,6 +317,10 @@ A pre-synced snapshot produced by these real connectors MAY be used only as a cl
 | `Person` | `id`, `owner_id`, `display_name`, photo, canonical title, manual field overrides with provenance, tags, timestamps |
 | `PersonIdentity` | `id`, `person_id`, `source_connection_id`, `kind`, raw/normalized value, verified/primary flags, first/last seen; source identity is never destroyed by merge |
 | `Organization` | `id`, `owner_id`, name, domain, enriched fields, field provenance, timestamps |
+| `MarketSearchRun` | `id`, `owner_id`, goal/query/fingerprint, country, freshness, result count, status, credits, timestamps |
+| `Opportunity` | `id`, `owner_id`, optional organization, canonical URL/domain, role, location, summary, verification status, published/discovered/checked/saved timestamps |
+| `OpportunityEvidence` | `id`, `owner_id`, opportunity/search run, public URL/title/excerpt or content reference, content hash, evidence type, published/checked timestamps |
+| `OpportunityPersonPath` | `id`, `owner_id`, opportunity, person, optional relationship/private evidence, path type/score/rationale |
 | `Employment` | `id`, `person_id`, `organization_id`, title, start/end, current flag, evidence source |
 | `Conversation` | `id`, `owner_id`, `source_connection_id`, external ID, type, title, timestamps |
 | `InteractionEvent` | `id`, `owner_id`, `source_connection_id`, conversation ID, external ID/version, type, direction, occurred time, subject/body, metadata, raw reference, deleted/indexing state |
@@ -315,7 +340,8 @@ A pre-synced snapshot produced by these real connectors MAY be used only as a cl
 
 - Unique canonical source artifacts: `(source_connection_id, external_id)`; source version/content hash drives audited updates.
 - Unique follow-up source keys when present: `(owner_id, source, source_key)`.
-- Every canonical and Convex query is scoped by `owner_id`.
+- Unique active opportunities: `(owner_id, canonical_url)`; evidence versions use URL plus content hash.
+- Every canonical, opportunity, and Convex query is scoped by `owner_id`.
 - Interactions and meetings support multiple participants through the join entity.
 - Person-to-organization history uses `Employment`; `current_org_id` is not the source of truth.
 - Semantic chunks cannot be the sole copy of source text or provenance.
@@ -335,14 +361,17 @@ A pre-synced snapshot produced by these real connectors MAY be used only as a cl
 - Embedding model changes dimension: create a versioned index/reindex rather than mixing vectors.
 - Citation source is deleted: remove/recompute affected answer evidence and show unavailable citation for previously stored query output.
 - Context.dev cannot resolve a free-email domain: skip enrichment without treating it as connector failure.
-- No useful network evidence exists: return no result and explain what data is missing.
+- Context.dev returns an old, inaccessible, duplicate, or snippet-only vacancy: deduplicate and label it `stale`/`unverified`, not open.
+- A verified opportunity has no network path: show the opportunity with “no warm path found” rather than fabricating a contact.
+- Market search fails but private evidence exists, or vice versa: return a visibly partial answer with the available evidence.
+- No useful market or network evidence exists: return no result and explain what data is missing.
 - Demo dependency fails: use unaffected live steps or disclosed pre-synced real data; never silently substitute mocks.
 
 ## Success Criteria
 
 ### SC-1: Two real pipelines
 
-Both FR-16 pipelines complete against team-controlled accounts. Pipeline A includes a real Google OAuth sync and Evolution QR/message flow. Pipeline B includes a real Collabute MCP retrieval, follow-up creation, Convex retrieval, and cited answer.
+Both FR-16 pipelines complete against team-controlled accounts. Pipeline A includes a real Google OAuth sync and Evolution QR/message flow. Pipeline B includes a real Collabute MCP retrieval, bounded Context.dev web search, public opportunity verification, Convex relationship retrieval, opportunity-to-person warm paths, and a relationship-grounded draft that is copied, saved, or converted into a reminder without automatic sending.
 
 ### SC-2: Identity quality
 
@@ -350,7 +379,7 @@ On a labeled demo set containing at least 30 source identities mapped to at leas
 
 ### SC-3: Query quality and grounding
 
-Across at least five predefined network questions, at least 3 of the top 5 returned contacts are judged relevant where five relevant contacts exist; 100% of factual relationship claims have valid citations; and no contact absent from the owner’s canonical graph is presented as an existing relationship.
+Across at least five predefined job/network questions, including the Dubai Product Manager scenario from `demo.md`, at least 3 of the top 5 returned people are judged relevant where five relevant contacts exist; 100% of factual relationship claims have valid private citations; 100% of open-role claims have accessible public citations checked during the run; and neither contacts nor vacancies are fabricated when evidence is absent.
 
 ### SC-4: Convex is critical and demonstrable
 
@@ -380,6 +409,10 @@ Disconnecting a source stops new ingestion and removes its credential. Choosing 
 
 The submitted web application is deployed at a stable HTTPS URL, starts from documented configuration, passes dependency preflight, and does not depend on a developer’s localhost except for explicitly tunneled/self-hosted Evolution infrastructure.
 
+### SC-11: Opportunity search and warm-path connection
+
+For the prepared Dubai Product Manager query, Context.dev returns at least three relevant public results when the live market contains them; every `verified_open_role` passes the role/company/location/open-state checks; duplicate URLs collapse to one active opportunity; and at least one opportunity is correctly connected to a known person/path while an opportunity with no path is explicitly labeled as such.
+
 ## Assumptions and Dependencies
 
 - P0 is single-owner, but `owner_id` is mandatory for future isolation and current query safety.
@@ -388,7 +421,7 @@ The submitted web application is deployed at a stable HTTPS URL, starts from doc
 - Evolution API is built locally from the pinned reviewed source and receives the required PII-log sanitization patch/configuration. Local development uses `http://localhost:8080`; any remotely hosted CRM backend reaches it only through an authenticated HTTPS tunnel or equivalent protected route.
 - Collabute signup and human OAuth are completed; the demo meeting is within the free plan’s accessible history window.
 - The Collabute adapter cannot be finalized until an authenticated `tools/list` response and representative meeting fixture are captured.
-- Context.dev provides 500 credits; current successful brand retrieval cost is assumed to be 10 credits.
+- Context.dev provides 500 credits; current cost assumptions are 10 credits per successful brand retrieval and 1 credit per 10 requested web-search results. Provider response metadata is authoritative and the shared ledger enforces the allocation in FR-5.8.
 - Convex Cloud free/starter capacity is sufficient for the bounded demo corpus; special hackathon credits are not assumed.
 - OpenRouter exposes `openai/text-embedding-3-small` through its embeddings API and at least one configured generation model.
 - PostgreSQL is canonical and Convex is derived/searchable state; their consistency model is eventual and explicit.
@@ -396,11 +429,11 @@ The submitted web application is deployed at a stable HTTPS URL, starts from doc
 
 ## Out of Scope for P0
 
-- Full LinkedIn credential automation or scraping; a future export-file importer is preferred over collecting LinkedIn passwords.
+- Full LinkedIn credential automation or scraping. The owner-supplied **LinkedIn data-export importer is in P0** (FR-17); logging into LinkedIn, automating it, or scraping profiles remains prohibited.
 - Telegram unless P0 is complete, Outlook, X, Instagram, Snapchat, and other channels.
 - Screenshots/OCR, raw WhatsApp media storage, audio transcription, and full document bodies.
-- Message sending, automated outreach, sequences, or acting on recommendations.
-- External job/company/opportunity crawling and claims that a company is hiring without imported evidence.
+- Automatic message sending, outreach sequences, or acting on recommendations; P0 supports relationship-grounded drafting, copy/external handoff, saved opportunities, and reminders only.
+- Continuous/exhaustive job crawling, vacancy monitoring, automated applications, and claims that a company is hiring without current public evidence. P0 includes bounded on-demand Context.dev search only.
 - Automatic AI-only person merges.
 - Multi-owner collaboration, tenant administration, mobile/native apps, billing, and payments.
 - Production Google restricted-scope verification/security assessment.
@@ -420,4 +453,7 @@ The submitted web application is deployed at a stable HTTPS URL, starts from doc
 - Collabute uses the Coding Tools Streamable HTTP MCP endpoint with human OAuth and runtime tool discovery; meeting tool schemas must be captured after authorization.
 - Drive is metadata-only in P0, but a first-class `Document` entity and manual person link are required for the NDA demo.
 - Source disconnect and source-data deletion are separate user choices and must propagate to derived semantic state.
-- Next.js 15 App Router and Tailwind CSS v4 follow `DESIGN.md`; the primary demo target is desktop Chrome with keyboard-accessible core flows.
+- `demo.md` is the canonical presentation flow. Its Dubai Product Manager scenario starts with bounded Context.dev vacancy search, then searches the owner’s Convex-backed relationship memory and graph for helpful people and warm paths into the discovered companies.
+- Draft actions stop at edit, copy, external-client handoff, saved opportunity, reminder, or saved follow-up; the CRM does not send or apply automatically.
+- Next.js 16 App Router and Tailwind CSS v4 follow `mockups/BRANDBOOK.md` as the canonical design authority, with `DESIGN.md` retained as the light-theme fallback export; the dark theme is default. The primary demo target is desktop Chrome with keyboard-accessible core flows.
+- `mockups/` holds design artifacts only, not a frontend. Where the brandbook contradicts this specification on data ownership, integration roles, or sources, the specification wins.

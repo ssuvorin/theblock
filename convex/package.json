@@ -1,0 +1,14 @@
+{
+  "name": "second-brain-convex",
+  "private": true,
+  "scripts": {
+    "deploy": "convex deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "convex": "1.45.0"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

@@ -1,3 +1,22 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
+
+# Personal data exports — never commit. Real contact data lives outside the repo.
+*LinkedInDataExport*
+data/imports/
+*.zip
+
+# Local build and runtime artifacts
+node_modules/
+.next/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.db
+*.sqlite3
+coverage/
+.env.local

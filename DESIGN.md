@@ -110,6 +110,13 @@ spacing:
   margin-edge: 24px
 ---
 
+> **Status: light-theme fallback export.** `mockups/BRANDBOOK.md` is the canonical
+> design authority and the dark ramp (`--bg #0A0B0D`) is the default theme. The
+> palette below is the same "Mono Ether" system expressed as light tokens, reachable
+> through the single theme attribute. Where the two files disagree on anything other
+> than palette, the brandbook wins; where the brandbook disagrees with `spec.md` on
+> product behaviour, the spec wins.
+
 ## Brand & Style
 
 The design system is a high-utility, minimalist framework designed for "CRM Brain." It adopts a **Technocratic Brutalist** aesthetic, prioritizing information density and structural clarity over decorative flourishes. The personality is disciplined, efficient, and transparent, aimed at power users who manage complex data relationships.

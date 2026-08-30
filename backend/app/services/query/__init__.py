@@ -1,0 +1,1 @@
+"""Opportunity-first query pipeline."""

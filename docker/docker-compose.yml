@@ -1,0 +1,95 @@
+name: second-brain-crm
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-second_brain}
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB:-second_brain}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.24.1-p1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-second_brain}
+      DB_USER: ${POSTGRES_USER:-crm}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      ADMIN_USERS: ${POSTGRES_USER:-crm}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB:-second_brain}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    environment:
+      CRM_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-crm}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@pgbouncer:5432/${POSTGRES_DB:-second_brain}
+      CRM_AUTH_SECRET: ${CRM_AUTH_SECRET:?Set CRM_AUTH_SECRET in .env}
+      CRM_OWNER_EMAIL: ${CRM_OWNER_EMAIL:-demo@careerbrain.app}
+      CRM_OWNER_PASSWORD: ${CRM_OWNER_PASSWORD:?Set CRM_OWNER_PASSWORD in .env}
+      CRM_OWNER_DISPLAY_NAME: ${CRM_OWNER_DISPLAY_NAME:-Alex Ivanov}
+      CRM_COOKIE_SECURE: ${CRM_COOKIE_SECURE:-false}
+      CRM_DEMO_MODE: ${CRM_DEMO_MODE:-true}
+      CRM_SEED_DEMO_DATA: ${CRM_SEED_DEMO_DATA:-true}
+      CRM_CONTEXT_DEV_API_KEY: ${CONTEXT_DEV_API_KEY:-}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        API_URL: http://backend:8000
+    environment:
+      API_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

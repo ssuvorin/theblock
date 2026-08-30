@@ -73,7 +73,7 @@ These limits are HARD constraints enforced by CI. A PR that violates them is blo
 ## Tech Stack Constraints
 
 - **Backend:** Python 3.12+ / FastAPI
-- **Frontend:** Next.js 15 (App Router) + Tailwind CSS v4
+- **Frontend:** Next.js 16.3.3 (App Router) + Tailwind CSS v4, dark-first per `mockups/BRANDBOOK.md`
 - **Containerization:** Docker + Docker Compose
 - **Canonical Database:** PostgreSQL (via PgBouncer connection pooling)
 - **Task Queue:** Redis + Celery, used only where durable asynchronous work is required
