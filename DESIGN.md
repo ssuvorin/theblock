@@ -279,12 +279,49 @@ disagree, the Person profile frame wins.
 
 ## 10. Logo
 
-Wordmark: **Career Brain**, Inter 600, `-0.035em`, `--fg`, with a 4px `--acc` rule
-under it and the tagline *Your network, working for your career.* below in `--fgv`. An
-orange square (20–44px) can precede the wordmark as the mark. Minimum clear space
-equals the cap height. Never on a busy image, never in another colour, never outlined.
+The mark is a **relationship graph in the shape of a brain** — the product taken
+literally. The back of the head is the network you already have, drawn in the grey
+ramp (`#585D66` dark / `#B4B4B4` light for the web, `--mut` for the nodes). The
+frontal lobe is the path the system found, in `--acc`. Flat: no glow, no gradient, no
+bevel, no shadow — a logo that breaks its own system never sits right on a screen
+built from that system.
 
----
+> The edge tone is deliberately not `--bd`. That token is a UI separator and
+> disappears against `--bg` at logo scale; the silhouette falls apart with it.
+
+**Primary lockup:** mark, then the wordmark **Career Brain** in Inter 600 at
+`-0.035em` in `--fg`, a 4px `--acc` rule beneath it, and the tagline
+*Your network, working for your career.* in `--fgv`. Minimum clear space on every side
+equals the wordmark's cap height.
+
+**Variants** — all in dark and light, under `logo/`:
+
+| File | Use |
+|---|---|
+| `career-brain-horizontal-*` | Primary. Default wherever there is horizontal room. |
+| `career-brain-horizontal-compact-*` | Top bars — no rule, no tagline. |
+| `career-brain-stacked-*` | Square placements: covers, slide title cards, avatars. |
+| `career-brain-mark-*` | Mark alone, when the name is already on screen. |
+| `career-brain-wordmark-*` | Type only. The one place the split colour is allowed. |
+| `career-brain-appicon-*` | 180px rounded square, full mark. |
+| `career-brain-monogram-*` | `CB` in a rounded square. |
+| `career-brain-favicon-*` | Reduced mark. |
+
+**Sizes.** 48px and up use the full mark. 24–32px use the reduced mark — a different
+drawing, not a scaled copy: the closed silhouette plus one orange triangle in the
+frontal lobe. The inner web is dropped rather than shrunk, because compressed it reads
+as a split rather than a brain. Below 24px use the `CB` monogram.
+
+**The split-colour wordmark** — `Career` in `--fg`, `Brain` in `--acc` — exists only
+for placements that carry no mark. Never set it beside the mark: that is two filled
+oranges in one region, which §11 forbids.
+
+**Never** recolour the hemispheres (grey is the network you have, orange is the path
+found — swapping them inverts the product's claim), add depth of any kind, stretch,
+rotate, outline, or place the mark on a busy image.
+
+Regenerate the whole kit with `node build-logo.mjs`; `logo/index.html` is the sheet
+with clear space, small sizes and don'ts.
 
 ## 11. Don'ts
 
