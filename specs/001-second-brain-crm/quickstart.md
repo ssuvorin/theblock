@@ -84,12 +84,29 @@ npx convex deploy
 # Schema + functions (chunks:upsertBatch, search, tombstoneInteraction, purgeTombstoned)
 ```
 
-## 6. Run Database Migrations
+## 6. Install the Backend
 
 ```bash
 cd backend/
 pip install -e ".[dev]"
-alembic upgrade head
+```
+
+The schema is authored in `app/models.py` and applied by Alembic. The app runs
+`alembic upgrade head` itself on startup, against the engine it already holds, so local runs,
+tests, and the container all take the same path. To apply migrations by hand:
+
+```bash
+cd backend/
+CRM_DATABASE_URL="postgresql+psycopg://..." alembic upgrade head
+```
+
+After changing a model, generate the matching revision — `tests/test_schema_source.py` fails
+until you do:
+
+```bash
+cd backend/
+CRM_DATABASE_URL="sqlite:///./tmp.db" alembic upgrade head
+CRM_DATABASE_URL="sqlite:///./tmp.db" alembic revision --autogenerate -m "describe the change"
 ```
 
 ## 7. Start Backend
@@ -187,7 +204,8 @@ theblock/
 │   │   │   └── celery_app.py
 │   │   ├── api/             # FastAPI routes
 │   │   └── workers/         # Celery tasks
-│   ├── alembic/             # Migrations
+│   │   └── migrations/      # Alembic revisions, generated from models.py
+│   ├── scripts/             # Archive generator and import CLI
 │   ├── tests/
 │   └── pyproject.toml       # Ruff config
 ├── frontend/                # Next.js 16 + Tailwind v4 (dark-first, BRANDBOOK.md)

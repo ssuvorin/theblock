@@ -7,7 +7,6 @@ from app.config import Settings
 from app.connectors.linkedin_export.importer import load_linkedin_export
 from app.database import Database
 from app.models import (
-    Base,
     InteractionEvent,
     InteractionParticipant,
     Owner,
@@ -15,6 +14,7 @@ from app.models import (
     PersonIdentity,
     Relationship,
 )
+from app.schema import upgrade_to_head
 from app.services.graph_writer import ArchiveGraphWriter
 from app.services.relationship_graph import collect_reciprocity
 from sqlalchemy import func, select
@@ -27,7 +27,7 @@ OWNER_URL = "https://www.linkedin.com/in/maya-haddad-product"
 @pytest.fixture
 def session(settings: Settings) -> Session:
     database = Database(Settings(**{**settings.model_dump(), "seed_demo_data": False}))
-    Base.metadata.create_all(database.engine)
+    upgrade_to_head(database.engine)
     with database.session_factory() as active:
         active.add(Owner(id="owner-1", display_name="Maya Haddad", email="maya@example.test"))
         active.commit()

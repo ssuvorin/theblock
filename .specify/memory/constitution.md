@@ -69,6 +69,8 @@ These limits are HARD constraints enforced by CI. A PR that violates them is blo
 - **ESLint + Prettier** (TypeScript / Next.js)
 - **CI gate:** script counts lines per file/class/function; fails if any exceed limits.
 - **Refactor trigger:** when a unit approaches 80% of its limit, extract a new unit.
+- **Exempt (generated, never hand-edited):** `mockups/**` design export, and
+  `**/migrations/versions/**` Alembic revisions produced by `--autogenerate`.
 
 ## Tech Stack Constraints
 

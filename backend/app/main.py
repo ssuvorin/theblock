@@ -18,7 +18,7 @@ from app.api import (
 )
 from app.config import Settings
 from app.database import Database
-from app.models import Base
+from app.schema import upgrade_to_head
 from app.services.demo_seed import DemoSeeder
 
 
@@ -28,7 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-        Base.metadata.create_all(database.engine)
+        upgrade_to_head(database.engine)
         if runtime_settings.seed_demo_data:
             with database.session_factory() as session:
                 DemoSeeder(session, runtime_settings).seed()

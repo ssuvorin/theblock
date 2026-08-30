@@ -46,6 +46,9 @@ class Violation(NamedTuple):
 def is_excluded(relative: Path) -> bool:
     if relative.parts and relative.parts[0] == "mockups":
         return True
+    # Alembic revisions are emitted by --autogenerate; splitting them would break the tool.
+    if relative.parent.match("**/migrations/versions"):
+        return True
     return any(part in EXCLUDED_PARTS or part == "_generated" for part in relative.parts)
 
 

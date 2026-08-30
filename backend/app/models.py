@@ -1,3 +1,11 @@
+"""Where the database schema is authored.
+
+These models are the only place the schema is written by hand. ``app/migrations`` applies it
+and is generated from here, never edited to diverge — a hand-written migration drifted from
+these models once already. ``tests/test_schema_source.py`` fails if the two disagree, so a
+new column here requires ``alembic revision --autogenerate``.
+"""
+
 import uuid
 from datetime import UTC, date, datetime
 
