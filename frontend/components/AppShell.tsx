@@ -16,9 +16,10 @@ const workspaceLinks = [
 ];
 
 const systemLinks = [
-  { index: "05", label: "Sources", href: "/settings/connections" },
-  { index: "06", label: "Imports", href: "/settings/imports" },
-  { index: "07", label: "Data", href: "/settings/data" },
+  { index: "05", label: "First run", href: "/onboarding" },
+  { index: "06", label: "Sources", href: "/settings/connections" },
+  { index: "07", label: "Imports", href: "/settings/imports" },
+  { index: "08", label: "Data", href: "/settings/data" },
 ];
 
 interface AppShellProps {
