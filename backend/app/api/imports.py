@@ -1,21 +1,27 @@
+import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile, status
 
 from app.api.deps import CurrentOwner, DbSession, RuntimeSettings
+from app.config import Settings
 from app.connectors.linkedin_export.importer import LinkedInImportPlan, load_linkedin_export
 from app.connectors.linkedin_export.parse import LinkedInArchiveError
+from app.database import Database
 from app.models import Owner
 from app.services.chunking import chunk_interaction
 from app.services.graph_writer import ArchiveGraphWriter
 from app.services.semantic_runtime import build_runtime
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/imports", tags=["imports"])
 MAX_ARCHIVE_BYTES = 30 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 80 * 1024 * 1024
 SYNTHETIC_FILENAME_MARKERS = ("synthetic", "demo", "fake")
+DRAIN_BATCH = 40
 
 
 def import_summary(plan: LinkedInImportPlan) -> dict[str, object]:
@@ -102,12 +108,37 @@ def queue_for_indexing(
     }
 
 
+def drain_after_import(database: Database, owner_id: str, settings: Settings) -> None:
+    """Work the queue down after the response, on a session of its own.
+
+    The request session is already closed by now, and a provider failure must not surface as a
+    failed import: the graph is committed and every unfinished row stays claimable.
+    """
+
+    with database.session_factory() as session:
+        runtime = build_runtime(session, owner_id, settings)
+        if not runtime.configured:
+            return
+        try:
+            while runtime.outbox.pending_count():
+                if runtime.indexer.drain(limit=DRAIN_BATCH).interactions_indexed == 0:
+                    break
+                session.commit()
+        except Exception:
+            logger.exception("semantic drain stopped for owner %s; queue is retryable", owner_id)
+            session.rollback()
+        else:
+            session.commit()
+
+
 @router.post("/linkedin")
 async def import_linkedin_archive(
+    request: Request,
     archive: UploadFile,
     owner: CurrentOwner,
     settings: RuntimeSettings,
     session: DbSession,
+    background: BackgroundTasks,
     dry_run: bool = False,
 ) -> dict[str, object]:
     """Import a LinkedIn export into the owner's graph, or validate it without writing."""
@@ -130,9 +161,11 @@ async def import_linkedin_archive(
     summary = import_summary(plan)
     if dry_run:
         return {"status": "validated", "persistence": "dry_run", **summary}
+    written = persist_plan(session, owner, plan, settings)
+    background.add_task(drain_after_import, request.app.state.database, owner.id, settings)
     return {
         "status": "imported",
         "persistence": "postgresql",
         **summary,
-        "written": persist_plan(session, owner, plan, settings),
+        "written": written,
     }

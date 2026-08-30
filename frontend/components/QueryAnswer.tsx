@@ -9,7 +9,8 @@ export type SelectedDraft = { draft: Draft; opportunity: Opportunity; path: Warm
 
 const degradedNames: Record<string, string> = {
   context_dev_search: "Current market search is unavailable. Network-only results may be shown.",
-  convex: "Private relationship retrieval is unavailable. Opportunities are shown without warm paths.",
+  private_retrieval:
+    "Private relationship retrieval is unavailable. Opportunities are shown without warm paths.",
 };
 
 function GoalSummary({ answer }: { answer: QueryAnswer }) {
