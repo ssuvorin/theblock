@@ -10,6 +10,7 @@ from types import MappingProxyType
 from ...domain.identity.normalize import (
     IdentityKind,
     NormalizedIdentity,
+    canonicalize_linkedin_url,
     normalize_identity,
 )
 from ...services.import_guard import DataOrigin, assert_archive_import_allowed
@@ -23,15 +24,21 @@ from .normalize import (
     normalize_message,
     normalize_owner_profile,
 )
+from .owner import OwnerResolution, resolve_owner_url
 from .parse import (
+    CONNECTIONS_HEADER_MARKER,
     KNOWN_FILES,
     LinkedInArchiveError,
     archive_file,
     field,
+    is_draft,
+    parse_connections,
     parse_invitations,
     parse_messages,
     read_csv_rows,
 )
+
+_HEADER_MARKERS = {"Connections.csv": CONNECTIONS_HEADER_MARKER}
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +48,17 @@ class ProposedPerson:
     is_owner: bool
     evidence: str
     data_origin: str
+    current_title: str | None = None
+    current_company: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionProfile:
+    """Company and position for a connection, used only to enrich known people."""
+
+    display_name: str
+    title: str | None
+    company: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +72,11 @@ class LinkedInImportPlan:
     file_counts: Mapping[str, int]
     warnings: tuple[str, ...]
     data_origin: str
+    owner_resolution_method: str = "unresolved"
+    owner_resolution_confidence: str = "none"
+    drafts_skipped: int = 0
+    connections_seen: int = 0
+    connections_matched: int = 0
 
     @property
     def conversation_count(self) -> int:
@@ -107,36 +130,52 @@ class LinkedInExportImporter:
         if not paths:
             raise LinkedInArchiveError("archive contains no supported LinkedIn CSV files")
         profile_rows = self._rows(paths, "Profile.csv")
-        owner_profile = self._owner_profile(profile_rows)
-        owner_url = owner_profile.profile_url if owner_profile else None
-        message_rows = self._message_rows(paths)
+        profile_row = profile_rows[0] if profile_rows else None
+        sent_rows, draft_count = self._message_rows(paths)
         invitation_rows = self._invitation_rows(paths)
+        resolution = resolve_owner_url(profile_row, sent_rows, invitation_rows)
+        owner_url = (
+            canonicalize_linkedin_url(resolution.profile_url) if resolution.profile_url else None
+        )
+        owner_profile = self._owner_profile(profile_row, owner_url)
         messages = tuple(
             normalize_message(
                 row,
                 owner_profile_url=owner_url,
                 data_origin=self._data_origin,
             )
-            for row in message_rows
+            for row in sent_rows
         )
         invitations = tuple(
             normalize_invitation(row, data_origin=self._data_origin) for row in invitation_rows
         )
-        identities = self._owner_identities(paths, owner_profile)
         hints = _deduplicate_hints(
             tuple(hint for message in messages for hint in message_identity_hints(message))
             + tuple(hint for invitation in invitations for hint in invitation.identity_hints)
         )
+        connections = self._connection_profiles(paths)
+        people = _people_from_messages(
+            messages,
+            owner_profile,
+            owner_url,
+            self._data_origin,
+            connections,
+        )
         return LinkedInImportPlan(
             owner_profile=owner_profile,
-            owner_identities=identities,
-            people=_people_from_messages(messages, owner_profile, self._data_origin),
+            owner_identities=self._owner_identities(paths, owner_profile),
+            people=people,
             messages=messages,
             invitations=invitations,
             identity_hints=hints,
             file_counts=MappingProxyType({name: len(self._rows(paths, name)) for name in paths}),
-            warnings=(),
+            warnings=_plan_warnings(resolution, messages),
             data_origin=self._data_origin,
+            owner_resolution_method=resolution.method,
+            owner_resolution_confidence=resolution.confidence,
+            drafts_skipped=draft_count,
+            connections_seen=len(connections),
+            connections_matched=sum(1 for person in people if person.current_title),
         )
 
     def _known_paths(self) -> dict[str, Path]:
@@ -149,23 +188,54 @@ class LinkedInExportImporter:
 
     def _rows(self, paths: Mapping[str, Path], name: str) -> tuple[dict[str, str], ...]:
         path = paths.get(name)
-        return read_csv_rows(path) if path else ()
+        if path is None:
+            return ()
+        return read_csv_rows(path, header_marker=_HEADER_MARKERS.get(name))
 
-    def _message_rows(self, paths: Mapping[str, Path]) -> tuple[dict[str, str], ...]:
+    def _message_rows(self, paths: Mapping[str, Path]) -> tuple[tuple[dict[str, str], ...], int]:
+        """Return sent messages and the number of unsent drafts that were dropped."""
+
         path = paths.get("messages.csv")
-        return parse_messages(path) if path else ()
+        rows = parse_messages(path) if path else ()
+        sent = tuple(row for row in rows if not is_draft(row))
+        return sent, len(rows) - len(sent)
 
     def _invitation_rows(self, paths: Mapping[str, Path]) -> tuple[dict[str, str], ...]:
         path = paths.get("Invitations.csv")
         return parse_invitations(path) if path else ()
 
+    def _connection_profiles(self, paths: Mapping[str, Path]) -> dict[str, ConnectionProfile]:
+        """Index connections by canonical URL so known people can gain a title."""
+
+        path = paths.get("Connections.csv")
+        if path is None:
+            return {}
+        profiles: dict[str, ConnectionProfile] = {}
+        for row in parse_connections(path):
+            raw_url = field(row, "URL", "Url", "PROFILE URL").strip()
+            if not raw_url:
+                continue
+            first = field(row, "First Name", "FIRST NAME").strip()
+            last = field(row, "Last Name", "LAST NAME").strip()
+            profiles[canonicalize_linkedin_url(raw_url)] = ConnectionProfile(
+                display_name=" ".join(part for part in (first, last) if part),
+                title=field(row, "Position", "POSITION").strip() or None,
+                company=field(row, "Company", "COMPANY").strip() or None,
+            )
+        return profiles
+
     def _owner_profile(
         self,
-        rows: tuple[dict[str, str], ...],
+        row: dict[str, str] | None,
+        resolved_url: str | None,
     ) -> NormalizedOwnerProfile | None:
-        if not rows:
+        if row is None:
             return None
-        return normalize_owner_profile(rows[0], data_origin=self._data_origin)
+        return normalize_owner_profile(
+            row,
+            data_origin=self._data_origin,
+            resolved_profile_url=resolved_url,
+        )
 
     def _owner_identities(
         self,
@@ -237,27 +307,55 @@ def load_linkedin_export(
 def _people_from_messages(
     messages: tuple[NormalizedMessage, ...],
     owner: NormalizedOwnerProfile | None,
+    owner_url: str | None,
     data_origin: str,
+    connections: Mapping[str, ConnectionProfile],
 ) -> tuple[ProposedPerson, ...]:
-    owner_url = owner.profile_url if owner else None
+    """Create people only from message evidence; connections merely add a title.
+
+    A connection list alone proves no interaction, so importing all of it would create
+    thousands of people the graph can never cite. Titles are still worth taking.
+    """
+
     names: dict[str, tuple[str, str]] = {}
     if owner and owner_url:
         names[owner_url] = (owner.display_name, "owner_profile")
     for message in messages:
-        participants = (message.sender, *message.recipients)
-        for participant in participants:
+        for participant in (message.sender, *message.recipients):
             if participant.profile_url and participant.profile_url not in names:
                 names[participant.profile_url] = (participant.display_name, "message")
-    return tuple(
-        ProposedPerson(
-            display_name=name,
-            linkedin_url=url,
-            is_owner=url == owner_url,
-            evidence=evidence,
-            data_origin=data_origin,
+    people: list[ProposedPerson] = []
+    for url, (name, evidence) in sorted(names.items()):
+        connection = connections.get(url)
+        is_owner = url == owner_url
+        people.append(
+            ProposedPerson(
+                display_name=name or (connection.display_name if connection else ""),
+                linkedin_url=url,
+                is_owner=is_owner,
+                evidence=evidence,
+                data_origin=data_origin,
+                current_title=None if is_owner or not connection else connection.title,
+                current_company=None if is_owner or not connection else connection.company,
+            )
         )
-        for url, (name, evidence) in sorted(names.items())
-    )
+    return tuple(people)
+
+
+def _plan_warnings(
+    resolution: OwnerResolution,
+    messages: tuple[NormalizedMessage, ...],
+) -> tuple[str, ...]:
+    """Surface weak owner evidence instead of silently producing a directionless graph."""
+
+    warnings: list[str] = []
+    if not resolution.resolved:
+        warnings.append("owner profile URL is unresolved; message direction is unknown")
+    elif resolution.confidence == "low":
+        warnings.append(f"owner profile URL inferred from {resolution.method} with low confidence")
+    if messages and all(message.direction is None for message in messages):
+        warnings.append("no message could be assigned a direction")
+    return tuple(warnings)
 
 
 def _deduplicate_hints(hints: tuple[IdentityHint, ...]) -> tuple[IdentityHint, ...]:

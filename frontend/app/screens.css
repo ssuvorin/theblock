@@ -114,3 +114,80 @@
 .legend-row { display: flex; align-items: center; gap: 8px; }
 .legend-line { width: 18px; border-top: 1px solid var(--bd); }
 .legend-path { border-top-style: dashed; border-top-color: var(--acc); }
+
+.import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.import-readout-stack { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.import-note { margin: 12px 0 0; color: var(--mut); font-size: 13px; }
+.import-readout-stack .import-note { margin: 0; }
+
+.import-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--bd);
+  border-left: 3px solid var(--idle);
+  background: var(--lowest);
+  padding: 20px;
+}
+.import-status-written { border-left-color: var(--pos); }
+.import-status-dry { border-left-color: var(--acc); }
+.import-status-headline { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+
+.import-readout-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--bd); background: var(--bd); }
+.import-readout { display: flex; flex-direction: column; gap: 6px; background: var(--lowest); padding: 16px; }
+.import-readout-value { font-family: "JetBrains Mono", monospace; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+
+.import-owner { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--bd); background: var(--low); padding: 16px 20px; }
+.import-owner-weak { border-color: var(--err); }
+
+.import-writes { display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--bd); background: var(--lowest); padding: 20px; }
+.import-pair { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--bd); padding-left: 14px; }
+.import-pair-figures { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.import-pair-figure { color: var(--fgv); font-size: 13px; }
+.import-pair-figure strong { margin-right: 7px; color: var(--fg); font-family: "JetBrains Mono", monospace; font-size: 19px; }
+.import-pair-kept strong { color: var(--accL); }
+.import-pair-note { margin: 0; color: var(--mut); font-size: 13px; }
+
+.import-warnings { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--err); background: var(--low); padding: 16px 20px; }
+.import-warning-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.import-warning { border-left: 2px solid var(--err); padding-left: 10px; color: var(--fgv); font-size: 13px; }
+
+.onboarding-steps { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; list-style: none; }
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 18px;
+  border: 1px solid var(--bd);
+  border-left: 3px solid var(--bd);
+  background: var(--lowest);
+  padding: 20px;
+}
+.onboarding-step-done { border-left-color: var(--pos); }
+.onboarding-step-blocked { background: var(--low); }
+.onboarding-step-blocked .onboarding-step-index { border-style: dashed; color: var(--mut); }
+.onboarding-step-index { display: flex; align-items: center; justify-content: center; width: 56px; height: 44px; border: 1px solid var(--bd); color: var(--fgv); font-family: "JetBrains Mono", monospace; }
+.onboarding-step-body { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
+.onboarding-step-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.onboarding-step-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.onboarding-step-note { margin: 0; color: var(--fgv); }
+.onboarding-step-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; }
+
+.onboarding-finish {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  border: 1px dashed var(--bd);
+  background: var(--low);
+  padding: 20px;
+}
+.onboarding-finish-ready { border-style: solid; border-color: var(--acc); background: var(--wash); }
+
+@media (max-width: 720px) {
+  .import-readout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-actions { flex-direction: column; }
+  .onboarding-step { grid-template-columns: 1fr; }
+}

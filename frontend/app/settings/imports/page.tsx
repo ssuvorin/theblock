@@ -2,31 +2,46 @@
 
 import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { ImportReport } from "@/components/ImportReport";
 import { SettingsTabs } from "@/components/SettingsTabs";
 import { Badge, Button, MonoLabel } from "@/components/ui";
 import { apiMessage, fetchApi } from "@/lib/api";
+import type { LinkedInImportReport } from "@/lib/types";
 
-export default function ImportsPage() {
+type ImportMode = "validate" | "import";
+
+function useArchiveImport() {
   const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<ImportMode | "">("");
   const [error, setError] = useState("");
-  const [report, setReport] = useState<unknown>(null);
+  const [report, setReport] = useState<LinkedInImportReport | null>(null);
 
-  async function upload(event: FormEvent) {
-    event.preventDefault();
-    if (!file) return;
-    setBusy(true);
+  async function send(mode: ImportMode) {
+    if (!file || busy) return;
+    setBusy(mode);
     setError("");
     setReport(null);
     const body = new FormData();
     body.set("archive", file);
+    const path = mode === "validate" ? "/api/imports/linkedin?dry_run=true" : "/api/imports/linkedin";
     try {
-      setReport(await fetchApi("/api/imports/linkedin", { method: "POST", body }));
+      setReport(await fetchApi<LinkedInImportReport>(path, { method: "POST", body }));
     } catch (requestError) {
       setError(apiMessage(requestError));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
+  }
+
+  return { file, setFile, busy, error, report, send };
+}
+
+export default function ImportsPage() {
+  const state = useArchiveImport();
+
+  function upload(event: FormEvent) {
+    event.preventDefault();
+    void state.send("import");
   }
 
   return (
@@ -44,14 +59,18 @@ export default function ImportsPage() {
           <MonoLabel>LinkedIn data export · ZIP</MonoLabel>
           <p className="prose-tone">The importer uses message reciprocity as relationship evidence. Invitations alone do not create people.</p>
           <label className="field-label" htmlFor="archive-file">Choose archive</label>
-          <input id="archive-file" className="file-input" type="file" accept=".zip,application/zip" onChange={(event) => setFile(event.target.files?.[0] || null)} required />
+          <input id="archive-file" className="file-input" type="file" accept=".zip,application/zip" onChange={(event) => state.setFile(event.target.files?.[0] || null)} required />
           <div className="form-footer">
-            <span className="form-help">{file ? file.name : "No archive selected"}</span>
-            <Button type="submit" variant="primary" disabled={busy || !file}>{busy ? "Importing" : "Import archive"}</Button>
+            <span className="form-help">{state.file ? state.file.name : "No archive selected"}</span>
+            <div className="import-actions">
+              <Button variant="secondary" onClick={() => state.send("validate")} disabled={Boolean(state.busy) || !state.file}>{state.busy === "validate" ? "Validating" : "Validate only"}</Button>
+              <Button type="submit" variant="primary" disabled={Boolean(state.busy) || !state.file}>{state.busy === "import" ? "Importing" : "Import archive"}</Button>
+            </div>
           </div>
+          <p className="import-note">Validate only calls the same endpoint with dry_run=true: the archive is parsed and counted, nothing is written.</p>
         </form>
-        {error && <div className="degraded-banner" role="alert"><span className="banner-mark">×</span>{error}</div>}
-        {report != null && <pre className="card card-body import-report" aria-label="Import report">{JSON.stringify(report, null, 2)}</pre>}
+        {state.error && <div className="degraded-banner" role="alert"><span className="banner-mark">×</span>{state.error}</div>}
+        {state.report && <ImportReport report={state.report} />}
       </div>
     </AppShell>
   );

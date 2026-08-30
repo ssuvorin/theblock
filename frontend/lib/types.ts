@@ -219,3 +219,35 @@ export interface OpportunitiesResponse {
   total: number;
   page: number;
 }
+
+export interface ImportWritten {
+  people_created: number;
+  people_matched: number;
+  identities_created: number;
+  interactions_created: number;
+  interactions_existing: number;
+  participants_created: number;
+  relationships_created: number;
+  relationships_updated: number;
+  contacts_without_title: number;
+  self_person_id?: string | null;
+  data_origin: string;
+}
+
+export interface LinkedInImportReport {
+  status: "imported" | "validated" | string;
+  persistence: "postgresql" | "dry_run" | string;
+  data_origin: string;
+  messages: number;
+  conversations: number;
+  people_proposed: number;
+  unique_identities: number;
+  empty_messages: number;
+  drafts_skipped: number;
+  connections_seen: number;
+  connections_matched: number;
+  owner_resolution: { method: string; confidence: string };
+  warnings: string[];
+  chunks_proposed: number;
+  written?: ImportWritten;
+}

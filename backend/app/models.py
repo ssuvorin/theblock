@@ -142,6 +142,7 @@ class InteractionEvent(Base):
     body_text: Mapped[str | None] = mapped_column(Text)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     raw_ref: Mapped[str | None] = mapped_column(Text)
+    content_version: Mapped[int] = mapped_column(Integer, default=1)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     data_origin: Mapped[str] = mapped_column(String(30), default="live_connector", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -238,6 +239,33 @@ class FollowUp(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class SemanticIndexOutbox(Base):
+    """Durable queue that keeps Convex eventually consistent with PostgreSQL."""
+
+    __tablename__ = "semantic_index_outbox"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "interaction_id", "embedding_version", "op"),
+        CheckConstraint("op IN ('upsert','tombstone')", name="ck_outbox_op"),
+        CheckConstraint(
+            "status IN ('pending','processing','done','failed')",
+            name="ck_outbox_status",
+        ),
+        Index("idx_outbox_claim", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("owner.id"), index=True)
+    interaction_id: Mapped[str] = mapped_column(ForeignKey("interaction_event.id"), index=True)
+    embedding_version: Mapped[str] = mapped_column(String(20), default="v1")
+    op: Mapped[str] = mapped_column(String(20), default="upsert")
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    chunks_written: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ContextCreditBudget(Base):

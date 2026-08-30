@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic_export"
-OWNER_URL = "https://www.linkedin.com/in/alex-ivanov-demo"
+OWNER_URL = "https://www.linkedin.com/in/maya-haddad-product"
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def session(settings: Settings) -> Session:
     database = Database(Settings(**{**settings.model_dump(), "seed_demo_data": False}))
     Base.metadata.create_all(database.engine)
     with database.session_factory() as active:
-        active.add(Owner(id="owner-1", display_name="Alex Ivanov", email="alex@example.test"))
+        active.add(Owner(id="owner-1", display_name="Maya Haddad", email="maya@example.test"))
         active.commit()
         yield active
 
@@ -66,7 +66,7 @@ def test_owner_self_person_is_linked_and_titled_from_profile(session: Session, p
     owner = session.scalar(select(Owner))
     assert owner.self_person_id == report.self_person_id
     self_person = session.get(Person, report.self_person_id)
-    assert self_person.display_name == "Alex Ivanov"
+    assert self_person.display_name == "Maya Haddad"
     assert self_person.current_title == plan.owner_profile.headline
     owner_emails = session.scalars(
         select(PersonIdentity).where(
@@ -74,7 +74,7 @@ def test_owner_self_person_is_linked_and_titled_from_profile(session: Session, p
             PersonIdentity.kind == "email",
         )
     ).all()
-    assert [item.normalized_value for item in owner_emails] == ["alex.ivanov@example.test"]
+    assert [item.normalized_value for item in owner_emails] == ["maya.haddad@example.test"]
 
 
 def test_every_interaction_has_participants_resolved_to_people(session: Session, plan) -> None:

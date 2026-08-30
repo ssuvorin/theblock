@@ -13,11 +13,12 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.connectors.linkedin_export.importer import LinkedInImportPlan
+from app.connectors.linkedin_export.importer import LinkedInImportPlan, ProposedPerson
 from app.connectors.linkedin_export.normalize import NormalizedMessage, NormalizedParticipant
 from app.models import (
     InteractionEvent,
     InteractionParticipant,
+    Organization,
     Owner,
     Person,
     PersonIdentity,
@@ -42,8 +43,10 @@ class ImportReport:
     interactions_created: int = 0
     interactions_existing: int = 0
     participants_created: int = 0
+    participants_unresolved: int = 0
     relationships_created: int = 0
     relationships_updated: int = 0
+    organizations_created: int = 0
     contacts_without_title: int = 0
     self_person_id: str | None = None
     data_origin: str = "synthetic"
@@ -60,10 +63,12 @@ class ArchiveGraphWriter:
         self._owner = owner
         self._report = ImportReport()
         self._identities: dict[tuple[str, str], PersonIdentity] = {}
+        self._organizations: dict[str, Organization] = {}
 
     def write(self, plan: LinkedInImportPlan) -> ImportReport:
         self._report.data_origin = plan.data_origin
         self._identities = self._identity_index()
+        self._organizations = self._organization_index()
         people = self._upsert_people(plan)
         self_person = self._resolve_self_person(plan, people)
         if self_person is None:
@@ -97,6 +102,7 @@ class ArchiveGraphWriter:
                 self._report.people_matched += 1
             else:
                 person = self._create_person(proposed.display_name, url, plan.data_origin)
+            self._apply_employment(person, proposed)
             people[url] = person
         self._session.flush()
         return people
@@ -119,6 +125,31 @@ class ArchiveGraphWriter:
         )
         self._report.people_created += 1
         return person
+
+    def _apply_employment(self, person: Person, proposed: ProposedPerson) -> None:
+        """Fill title and employer from the connection list without overwriting owner edits."""
+
+        if proposed.current_title and "current_title" not in person.manual_overrides:
+            person.current_title = proposed.current_title
+        if proposed.current_company and "current_org_id" not in person.manual_overrides:
+            person.current_org_id = self._organization(proposed.current_company).id
+
+    def _organization(self, name: str) -> Organization:
+        existing = self._organizations.get(name.casefold())
+        if existing is not None:
+            return existing
+        organization = Organization(owner_id=self._owner.id, name=name)
+        self._session.add(organization)
+        self._session.flush()
+        self._organizations[name.casefold()] = organization
+        self._report.organizations_created += 1
+        return organization
+
+    def _organization_index(self) -> dict[str, Organization]:
+        rows = self._session.scalars(
+            select(Organization).where(Organization.owner_id == self._owner.id)
+        )
+        return {row.name.casefold(): row for row in rows}
 
     def _add_identity(
         self,
@@ -234,16 +265,19 @@ class ArchiveGraphWriter:
                 if (address, role) in seen:
                     continue
                 seen.add((address, role))
+                person_id = _participant_person(participant, people)
                 self._session.add(
                     InteractionParticipant(
                         owner_id=self._owner.id,
                         interaction_id=event.id,
-                        person_id=_participant_person(participant, people),
+                        person_id=person_id,
                         source_address=address,
                         role=role,
                     )
                 )
                 self._report.participants_created += 1
+                if person_id is None:
+                    self._report.participants_unresolved += 1
         self._session.flush()
 
     def _derive_edges(

@@ -1,25 +1,41 @@
-"""CSV parsing primitives for ``Basic_LinkedInDataExport`` archives."""
+"""CSV parsing primitives for LinkedIn data-export archives.
+
+Real exports are messier than the Basic sample suggests: ``Connections.csv`` opens with a
+free-text ``Notes:`` preamble before its header, job files live under a ``Jobs/``
+subdirectory, ``Sent At`` timestamps use more than one format, and ``messages.csv`` carries
+unsent drafts alongside real messages. Every quirk here was observed in an actual archive.
+"""
 
 from __future__ import annotations
 
 import csv
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 CSV_FIELD_SIZE_LIMIT = 16 * 1024 * 1024
 MESSAGE_DATE_FORMAT = "%Y-%m-%d %H:%M:%S UTC"
-INVITATION_DATE_FORMAT = "%m/%d/%y, %I:%M %p"
+INVITATION_DATE_FORMATS = (
+    "%m/%d/%y, %I:%M %p",
+    "%Y-%m-%d %H:%M:%S UTC",
+    "%Y-%m-%d %H:%M:%S",
+    "%d %b %Y",
+)
+CONNECTIONS_HEADER_MARKER = "First Name"
 KNOWN_FILES = (
     "messages.csv",
     "Invitations.csv",
     "Profile.csv",
     "Positions.csv",
+    "Connections.csv",
     "Company Follows.csv",
     "Skills.csv",
     "Email Addresses.csv",
     "PhoneNumbers.csv",
+    "Job Seeker Preferences.csv",
 )
+_DRAFT_FLAGS = ("IS MESSAGE DRAFT", "IS CONVERSATION DRAFT")
+_TRUTHY = frozenset({"true", "yes", "1"})
 
 
 class LinkedInArchiveError(ValueError):
@@ -35,29 +51,24 @@ def raise_csv_field_limit(limit: int = CSV_FIELD_SIZE_LIMIT) -> int:
     return csv.field_size_limit()
 
 
-def read_csv_rows(path: str | Path) -> tuple[dict[str, str], ...]:
-    """Parse records with stdlib CSV, including quoted embedded newlines."""
+def read_csv_rows(
+    path: str | Path,
+    *,
+    header_marker: str | None = None,
+) -> tuple[dict[str, str], ...]:
+    """Parse records with stdlib CSV, including quoted embedded newlines.
+
+    ``header_marker`` names a column that must appear in the header, which lets callers skip
+    a free-text preamble instead of misreading it as data.
+    """
 
     csv_path = Path(path)
     raise_csv_field_limit()
     try:
         with csv_path.open("r", encoding="utf-8-sig", newline="") as stream:
-            reader = csv.DictReader(stream)
-            if reader.fieldnames is None:
-                raise LinkedInArchiveError(f"{csv_path.name} has no CSV header")
-            rows: list[dict[str, str]] = []
-            for row_number, row in enumerate(reader, start=2):
-                if None in row:
-                    raise LinkedInArchiveError(
-                        f"{csv_path.name} row {row_number} has more values than headers"
-                    )
-                normalized = {
-                    (key or "").strip().lstrip("\ufeff"): value if value is not None else ""
-                    for key, value in row.items()
-                }
-                if any(value != "" for value in normalized.values()):
-                    rows.append(normalized)
-            return tuple(rows)
+            reader = csv.reader(stream)
+            header = _locate_header(reader, csv_path, header_marker)
+            return tuple(_row_dicts(reader, header, csv_path))
     except (OSError, csv.Error) as error:
         raise LinkedInArchiveError(f"could not parse {csv_path.name}: {error}") from error
 
@@ -74,6 +85,20 @@ def parse_invitations(path: str | Path) -> tuple[dict[str, str], ...]:
     return rows
 
 
+def parse_connections(path: str | Path) -> tuple[dict[str, str], ...]:
+    """Read ``Connections.csv`` past the privacy notice LinkedIn prepends to it."""
+
+    rows = read_csv_rows(path, header_marker=CONNECTIONS_HEADER_MARKER)
+    _require_headers(rows, path, ("First Name", "Last Name", "URL"))
+    return rows
+
+
+def is_draft(row: Mapping[str, str]) -> bool:
+    """A drafted message was never sent, so it is not interaction evidence."""
+
+    return any(field(row, flag).strip().casefold() in _TRUTHY for flag in _DRAFT_FLAGS)
+
+
 def parse_message_date(value: str) -> datetime:
     """Parse the UTC timestamp format used only by ``messages.csv``."""
 
@@ -85,25 +110,35 @@ def parse_message_date(value: str) -> datetime:
 
 
 def parse_invitation_date(value: str) -> date:
-    """Parse an invitation timestamp as date-only because its zone is unknown."""
+    """Parse an invitation timestamp as date-only because its zone is unknown.
 
-    try:
-        return datetime.strptime(value.strip(), INVITATION_DATE_FORMAT).date()
-    except ValueError as error:
-        raise LinkedInArchiveError("invalid Invitations.csv Sent At") from error
+    LinkedIn has shipped several ``Sent At`` formats, so accept each observed one rather than
+    failing the whole import on a format the archive is entitled to use.
+    """
+
+    text = value.strip()
+    for pattern in INVITATION_DATE_FORMATS:
+        try:
+            return datetime.strptime(text, pattern).date()
+        except ValueError:
+            continue
+    raise LinkedInArchiveError("invalid Invitations.csv Sent At")
 
 
 def archive_file(path: str | Path, filename: str) -> Path | None:
-    """Locate a known file case-insensitively without assuming all exports contain it."""
+    """Locate a known file case-insensitively, including inside export subdirectories."""
 
     archive = Path(path)
     if not archive.is_dir():
         raise LinkedInArchiveError("archive path must be a directory")
     expected = filename.casefold()
-    for candidate in archive.iterdir():
+    for candidate in sorted(archive.iterdir()):
         if candidate.is_file() and candidate.name.casefold() == expected:
             return candidate
-    return None
+    nested = sorted(
+        item for item in archive.rglob("*") if item.is_file() and item.name.casefold() == expected
+    )
+    return nested[0] if nested else None
 
 
 def field(row: Mapping[str, str], *names: str, default: str = "") -> str:
@@ -117,6 +152,44 @@ def field(row: Mapping[str, str], *names: str, default: str = "") -> str:
         if name.casefold() in folded:
             return folded[name.casefold()]
     return default
+
+
+def _locate_header(
+    reader: Iterator[list[str]],
+    path: Path,
+    header_marker: str | None,
+) -> tuple[str, ...]:
+    """Return the first non-empty row that qualifies as the header."""
+
+    wanted = header_marker.casefold() if header_marker else None
+    for values in reader:
+        header = tuple(_clean_key(value) for value in values)
+        if not any(header):
+            continue
+        if wanted is None or any(name.casefold() == wanted for name in header):
+            return header
+    if wanted is None:
+        raise LinkedInArchiveError(f"{path.name} has no CSV header")
+    raise LinkedInArchiveError(f"{path.name} has no {header_marker} header row")
+
+
+def _row_dicts(
+    reader: Iterator[list[str]],
+    header: tuple[str, ...],
+    path: Path,
+) -> Iterator[dict[str, str]]:
+    for row_number, values in enumerate(reader, start=2):
+        if len(values) > len(header):
+            raise LinkedInArchiveError(f"{path.name} row {row_number} has more values than headers")
+        row = {
+            name: values[index] if index < len(values) else "" for index, name in enumerate(header)
+        }
+        if any(value != "" for value in row.values()):
+            yield row
+
+
+def _clean_key(value: str) -> str:
+    return value.strip().lstrip("\ufeff")
 
 
 def _require_headers(

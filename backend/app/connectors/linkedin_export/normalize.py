@@ -107,7 +107,7 @@ def normalize_message(
     raw_recipient_urls = _extract_urls(field(row, "RECIPIENT PROFILE URLS"))
     recipient_urls = tuple(_canonical_optional_url(value) for value in raw_recipient_urls)
     recipients = _recipient_participants(recipient_names, raw_recipient_urls, recipient_urls)
-    direction = _direction(sender_url, owner_profile_url)
+    direction = _direction(sender_url, owner_profile_url, recipient_urls)
     return NormalizedMessage(
         external_id=deterministic_external_id(
             conversation_id,
@@ -155,7 +155,14 @@ def normalize_owner_profile(
     row: Mapping[str, str],
     *,
     data_origin: str,
+    resolved_profile_url: str | None = None,
 ) -> NormalizedOwnerProfile:
+    """Build the owner profile, preferring an externally resolved URL.
+
+    ``Profile.csv`` usually has no URL column at all, so the caller resolves the owner URL
+    from message and invitation evidence and passes it in here.
+    """
+
     first_name = field(row, "First Name", "FIRST NAME").strip()
     last_name = field(row, "Last Name", "LAST NAME").strip()
     display_name = " ".join(part for part in (first_name, last_name) if part)
@@ -165,9 +172,10 @@ def normalize_owner_profile(
         "LinkedIn Profile URL",
         "Public Profile URL",
     ).strip()
+    profile_url = _canonical_optional_url(resolved_profile_url or raw_profile_url)
     return NormalizedOwnerProfile(
         display_name=display_name,
-        profile_url=_canonical_optional_url(raw_profile_url),
+        profile_url=profile_url,
         headline=field(row, "Headline", "HEADLINE").strip() or None,
         data_origin=data_origin,
     )
@@ -192,10 +200,22 @@ def _identity_hint(raw_url: str, evidence: str) -> IdentityHint:
     )
 
 
-def _direction(sender_url: str | None, owner_url: str | None) -> str | None:
-    if not sender_url or not owner_url:
+def _direction(
+    sender_url: str | None,
+    owner_url: str | None,
+    recipient_urls: tuple[str | None, ...] = (),
+) -> str | None:
+    """Classify a message relative to the owner.
+
+    LinkedIn omits the sender URL for restricted or deleted accounts. The owner appearing
+    among the recipients still proves the message was received, so direction survives.
+    """
+
+    if not owner_url:
         return None
-    return "outgoing" if sender_url == owner_url else "incoming"
+    if sender_url:
+        return "outgoing" if sender_url == owner_url else "incoming"
+    return "incoming" if owner_url in recipient_urls else None
 
 
 def _extract_urls(value: str) -> tuple[str, ...]:
@@ -226,5 +246,5 @@ def _recipient_participants(
     return tuple(recipients)
 
 
-def _canonical_optional_url(value: str) -> str | None:
+def _canonical_optional_url(value: str | None) -> str | None:
     return canonicalize_linkedin_url(value) if value else None

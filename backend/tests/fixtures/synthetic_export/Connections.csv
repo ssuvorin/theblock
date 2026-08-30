@@ -1,0 +1,36 @@
+Notes:
+"When exporting your connection data, you may notice that some of the email addresses are missing. You will only see email addresses for connections who have allowed their connections to see or download their email address using this setting https://www.linkedin.com/psettings/privacy/email."
+
+First Name,Last Name,URL,Email Address,Company,Position,Connected On
+Marta,Oliveira,https://www.linkedin.com/in/marta-oliveira-product,,Rain,VP Product,19 Mar 2021
+Sergey,Lapin,https://www.linkedin.com/in/sergey-lapin-ai,sergey-lapin-ai@example.test,NeuralPay Labs,Chief Technology Officer,20 Apr 2021
+John,Whitfield,https://www.linkedin.com/in/john-whitfield-capital,john-whitfield-capital@example.test,Crescent Digital Ventures,Partner,25 May 2021
+Daniel,Ruiz,https://www.linkedin.com/in/daniel-ruiz-ops,daniel-ruiz-ops@example.test,Palm Logistics,Head of Operations,22 Jun 2021
+Nadia,Karim,https://www.linkedin.com/in/nadia-karim-growth,,OrbitPay,Growth Lead,01 Aug 2021
+Omar,Faris,https://www.linkedin.com/in/omar-faris-design,omar-faris-design@example.test,Saffron Wallet,Product Designer,16 Sep 2021
+Lena,Brandt,https://www.linkedin.com/in/lena-brandt-founder,,DesertBlock,Co-founder,31 Oct 2021
+Tom,Nkemdirim,https://www.linkedin.com/in/tom-nkemdirim-eng,tom-nkemdirim-eng@example.test,HarborX,Engineering Manager,07 Dec 2021
+Ruth,Alvarez,https://www.linkedin.com/in/ruth-alvarez-talent,ruth-alvarez-talent@example.test,Atlas Custody,Technical Recruiter,27 Jan 2022
+Priya,Raghavan,https://www.linkedin.com/in/priya-raghavan-risk,,Nebula Markets,Risk Product Manager,05 Mar 2022
+Yusuf,Demir,https://www.linkedin.com/in/yusuf-demir-compliance,yusuf-demir-compliance@example.test,Lattice Labs,Compliance Lead,21 Apr 2022
+Hana,Sato,https://www.linkedin.com/in/hana-sato-research,,NodeSpring,User Researcher,30 May 2022
+Aisha,Reed,https://www.linkedin.com/in/aisha-reed-00001,,NovaLedger Labs,Product Manager,06 Jun 2022
+Nora,Moretti,https://www.linkedin.com/in/nora-moretti-00002,,Crescent Protocol,Blockchain Engineer,07 Jul 2022
+Layla,Santos,https://www.linkedin.com/in/layla-santos-00003,,Mirage Finance,Community Lead,09 Aug 2022
+Mariam,Nasser,https://www.linkedin.com/in/mariam-nasser-00004,,PalmChain,Investment Associate,31 Aug 2022
+Elena,Singh,https://www.linkedin.com/in/elena-singh-00005,,OrbitPay,Data Analyst,27 Sep 2022
+Zara,Malik,https://www.linkedin.com/in/zara-malik-00006,,,,20 Oct 2022
+Karim,Haddadi,https://www.linkedin.com/in/karim-haddadi-00007,,NovaLedger Labs,Product Manager,26 Oct 2022
+Faisal,Al Mansoori,https://www.linkedin.com/in/faisal-al-mansoori-00008,,Crescent Protocol,Blockchain Engineer,08 Nov 2022
+Beatriz,Costa,https://www.linkedin.com/in/beatriz-costa-00009,,Mirage Finance,Community Lead,22 Nov 2022
+Ivan,Petrov,https://www.linkedin.com/in/ivan-petrov-00010,,PalmChain,Investment Associate,26 Dec 2022
+Chen,Wei,https://www.linkedin.com/in/chen-wei-00011,,OrbitPay,Data Analyst,31 Dec 2022
+Sofia,Lindqvist,https://www.linkedin.com/in/sofia-lindqvist-00012,,,,30 Jan 2023
+Ahmed,Belhaj,https://www.linkedin.com/in/ahmed-belhaj-00013,,NovaLedger Labs,Product Manager,01 Mar 2023
+Grace,Otieno,https://www.linkedin.com/in/grace-otieno-00014,,Crescent Protocol,Blockchain Engineer,14 Mar 2023
+Tariq,Shah,https://www.linkedin.com/in/tariq-shah-00015,,Mirage Finance,Community Lead,25 Mar 2023
+Emilia,Novak,https://www.linkedin.com/in/emilia-novak-00016,,PalmChain,Investment Associate,02 Apr 2023
+Rami,Khoury,https://www.linkedin.com/in/rami-khoury-00017,,OrbitPay,Data Analyst,02 May 2023
+Dina,Farouk,https://www.linkedin.com/in/dina-farouk-00018,,,,05 Jun 2023
+Victor,Alonso,https://www.linkedin.com/in/victor-alonso-00019,,NovaLedger Labs,Product Manager,12 Jul 2023
+Mei,Tanaka,https://www.linkedin.com/in/mei-tanaka-00020,,Crescent Protocol,Blockchain Engineer,11 Aug 2023
