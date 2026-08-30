@@ -22,7 +22,7 @@ from app.connectors.base import (
 from app.connectors.google.api import GMAIL_ROOT, GoogleApi
 from app.connectors.google.calendar import CalendarSurface
 from app.connectors.google.gmail import GmailSurface
-from app.connectors.google.oauth import SCOPES, GoogleOAuth
+from app.connectors.google.oauth import GoogleOAuth
 
 SOURCE_TYPE = "google"
 GMAIL_KEY = "gmail"
@@ -44,9 +44,10 @@ class GoogleConnector:
     def capabilities(self) -> dict:
         return {
             "surfaces": [GmailSurface.source, CalendarSurface.source],
-            "scopes": list(SCOPES),
+            "scopes": list(self._oauth.scopes),
             "lookback_days": self._settings.connector_lookback_days,
-            "write_access": False,
+            "write_access": self._settings.google_meeting_scheduling,
+            "scheduling": self._settings.google_meeting_scheduling,
             "delta": {"gmail": "historyId", "calendar": "syncToken"},
         }
 
@@ -59,7 +60,7 @@ class GoogleConnector:
         account = self._account_email(credentials)
         return AuthGrant(
             external_account_id=account,
-            scopes=tuple(str(credentials.get("scope") or "").split()) or SCOPES,
+            scopes=tuple(str(credentials.get("scope") or "").split()) or self._oauth.scopes,
             capabilities={**self.capabilities, "account": account},
             credentials={**credentials, "account": account},
         )

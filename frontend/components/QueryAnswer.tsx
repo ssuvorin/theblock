@@ -38,8 +38,8 @@ export function QueryAnswerView({ answer, question, draftBusyId, selectedDraft, 
     <section className="answer-stack" aria-label="Query answer">
       <div className="query-quote">&gt; {question}</div>
       <div className="readout-row">
-        <PartnerReadout partner="Context.dev" job="market search" count={answer.search?.sources_checked} unit="sources checked" live />
-        <PartnerReadout partner="Convex" job="semantic index" />
+        <PartnerReadout partner={answer.search?.provider === "context.dev" ? "Context.dev" : "Synthetic demo"} job="market search" count={answer.search?.sources_checked} unit="sources checked" live={answer.search?.provider === "context.dev"} />
+        <PartnerReadout partner="Convex" job="semantic index" count={answer.semantic_index?.chunks} unit="chunks" live={answer.semantic_index?.status === "ready"} />
         <PartnerReadout partner="Collabute" job="meeting import" />
       </div>
       {answer.degraded && (answer.degraded_components || ["unknown"]).map((component) => (

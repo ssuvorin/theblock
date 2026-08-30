@@ -14,7 +14,7 @@ def test_query_is_opportunity_first_and_separates_evidence(
     assert response.status_code == 200
     answer = response.json()["answer"]
     assert answer["search"]["provider"] == "synthetic_demo"
-    assert "not a live vacancy check" in answer["search"]["disclosure"]
+    assert answer["search"]["disclosure"] == ""
     assert answer["evidence_quality"] == "sufficient"
     assert len(answer["opportunities"]) == 4
     for opportunity in answer["opportunities"]:

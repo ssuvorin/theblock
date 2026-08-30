@@ -18,6 +18,7 @@ from datetime import timedelta
 from urllib.parse import urlencode, urlsplit
 
 import httpx
+
 from app.config import Settings
 from app.connectors.base import ReauthRequired, SourceUnavailable
 from app.models import utcnow

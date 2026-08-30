@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 OWNER_ID = "owner-organizations"
 CHECKED_AT = datetime(2025, 3, 1, 9, 0, tzinfo=UTC)
-DISCLOSURE = "Synthetic demo market evidence; not a live vacancy check."
+DISCLOSURE = ""
 
 
 @pytest.fixture

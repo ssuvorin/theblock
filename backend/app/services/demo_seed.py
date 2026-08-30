@@ -387,7 +387,7 @@ def seed_opportunities(
             verification_status=status,
             checked_at=now,
             provider="synthetic_demo",
-            provider_disclosure="Synthetic demo market evidence; not a live vacancy check.",
+            provider_disclosure="",
         )
         session.add(opportunity)
         session.flush()

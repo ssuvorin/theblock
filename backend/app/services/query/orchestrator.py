@@ -16,6 +16,7 @@ from app.services.opportunity_cards import OpportunityCardBuilder
 from app.services.presentation import interaction_json
 from app.services.query.goal_parser import DeterministicGoalParser
 from app.services.query.ranking import QueryRanker
+from app.services.semantic_runtime import index_snapshot
 from app.services.warm_paths import WarmPathDeriver
 
 logger = logging.getLogger(__name__)
@@ -112,9 +113,21 @@ class OpportunityQueryOrchestrator:
                 "evidence_quality": quality,
                 "degraded": bool(degraded_components),
                 "degraded_components": degraded_components,
-                "private_retrieval": "owner-scoped prepared synthetic graph",
+                "private_retrieval": self._private_retrieval(),
+                "semantic_index": self._semantic_readout(),
             }
         }
+
+    def _semantic_readout(self) -> dict[str, object]:
+        """Bind the partner read-out to a real chunk count instead of leaving it blank."""
+
+        return index_snapshot(self._session, self._owner.id, self._settings)
+
+    def _private_retrieval(self) -> str:
+        chunks = self._semantic_readout()["chunks"]
+        if not chunks:
+            return "owner-scoped relationship graph in PostgreSQL"
+        return f"owner-scoped relationship graph plus {chunks} indexed chunks"
 
     def _market_degraded(self, goal: Goal) -> dict:
         candidates = self._network_candidates()

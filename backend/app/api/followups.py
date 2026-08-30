@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.api.deps import CurrentOwner, DbSession, RuntimeSettings
 from app.domain.schemas import FollowUpCreate, FollowUpPatch
 from app.repositories.followups import FollowUpRepository
+from app.services.followup_rules import FollowUpDeriver
 from app.services.presentation import follow_up_json
 
 router = APIRouter(prefix="/api/followups", tags=["follow-ups"])
@@ -16,11 +17,26 @@ def list_follow_ups(
     status_filter: str | None = Query(default=None, alias="status"),
     sort: str = "due_date",
 ) -> dict:
-    del sort
+    """List follow-ups, deriving them first only when the owner has none open at all."""
+
     repo = FollowUpRepository(db, owner.id, settings.demo_mode)
-    return {
-        "follow_ups": [follow_up_json(item, person) for item, person in repo.list(status_filter)]
-    }
+    if repo.pending_count() == 0:
+        FollowUpDeriver(db, owner.id, settings.demo_mode).derive()
+    rows = repo.list(status_filter, sort)
+    return {"follow_ups": [follow_up_json(item, person) for item, person in rows]}
+
+
+@router.post("/derive")
+def derive_follow_ups(
+    owner: CurrentOwner,
+    db: DbSession,
+    settings: RuntimeSettings,
+) -> dict:
+    """Recompute the derived signals from the stored graph and report what the screen holds."""
+
+    derived = FollowUpDeriver(db, owner.id, settings.demo_mode).derive()
+    repo = FollowUpRepository(db, owner.id, settings.demo_mode)
+    return {"derived": derived, "status_counts": repo.status_counts()}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

@@ -142,11 +142,12 @@ def _headers(part: dict) -> dict[str, str]:
 
 
 def _participants(headers: dict[str, str]) -> Iterator[NormalizedParticipant]:
-    for name, address in getaddresses([headers.get("from", "")]):
-        yield _participant(name, address, "sender")
-    for header, role in ROLE_HEADERS:
+    """Skip addressless entries: an absent Cc header still parses to one empty pair."""
+
+    for header, role in (("From", "sender"), *ROLE_HEADERS):
         for name, address in getaddresses([headers.get(header.casefold(), "")]):
-            yield _participant(name, address, role)
+            if address.strip():
+                yield _participant(name, address, role)
 
 
 def _participant(name: str, address: str, role: str) -> NormalizedParticipant:

@@ -1,8 +1,12 @@
 """Google OAuth2 for a server-side confidential client.
 
 The code exchange happens here and nowhere else: the browser only ever carries an
-authorization code, and the client secret never leaves the backend. Scopes are a fixed
-read-only tuple rather than a parameter, so no caller can widen them.
+authorization code, and the client secret never leaves the backend.
+
+Ingestion is read-only. ``calendar.events`` is the single write scope and it is requested only
+when meeting scheduling is switched on, because it is the one capability that can change data
+in the owner's Google account. Scopes are always computed from settings here and never passed
+in by a caller, so no call site can widen them.
 """
 
 from __future__ import annotations
@@ -21,8 +25,18 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
-SCOPES: tuple[str, ...] = (GMAIL_SCOPE, CALENDAR_SCOPE)
+CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+READ_SCOPES: tuple[str, ...] = (GMAIL_SCOPE, CALENDAR_SCOPE)
+SCOPES: tuple[str, ...] = READ_SCOPES
 REFRESH_SKEW_SECONDS = 300
+
+
+def scopes_for(settings: Settings) -> tuple[str, ...]:
+    """Read scopes always; the calendar write scope only when scheduling is enabled."""
+
+    if settings.google_meeting_scheduling:
+        return (*READ_SCOPES, CALENDAR_WRITE_SCOPE)
+    return READ_SCOPES
 
 
 class GoogleOAuth:
@@ -31,6 +45,11 @@ class GoogleOAuth:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._timeout = settings.connector_timeout_seconds
+        self._scopes = scopes_for(settings)
+
+    @property
+    def scopes(self) -> tuple[str, ...]:
+        return self._scopes
 
     def authorize_url(self, redirect_uri: str, state: str) -> str:
         """`prompt=consent` every time, because Google only issues a refresh token then."""
@@ -40,7 +59,7 @@ class GoogleOAuth:
                 "client_id": self._client_id(),
                 "redirect_uri": redirect_uri,
                 "response_type": "code",
-                "scope": " ".join(SCOPES),
+                "scope": " ".join(self._scopes),
                 "state": state,
                 "access_type": "offline",
                 "prompt": "consent",
@@ -94,8 +113,7 @@ class GoogleOAuth:
         except ValueError as error:
             raise SourceUnavailable("Google token response was not JSON") from error
 
-    @staticmethod
-    def _credentials(body: dict, fallback_refresh: str | None = None) -> dict:
+    def _credentials(self, body: dict, fallback_refresh: str | None = None) -> dict:
         expires_in = int(body.get("expires_in") or 0)
         expires_at = utcnow() + timedelta(seconds=max(0, expires_in - REFRESH_SKEW_SECONDS))
         refresh_token = body.get("refresh_token") or fallback_refresh
@@ -106,7 +124,7 @@ class GoogleOAuth:
         return {
             "access_token": str(body.get("access_token") or ""),
             "refresh_token": str(refresh_token),
-            "scope": str(body.get("scope") or " ".join(SCOPES)),
+            "scope": str(body.get("scope") or " ".join(self._scopes)),
             "expires_at": expires_at.isoformat(),
         }
 

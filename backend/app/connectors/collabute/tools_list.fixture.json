@@ -1,0 +1,414 @@
+{
+  "tools": [
+    {
+      "name": "system.ping",
+      "description": "Health check for MCP connectivity and tenant resolution. Use first when troubleshooting MCP setup.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "System Ping",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "memory.search",
+      "description": "Semantic memory retrieval across organization context. Best for broad historical context and decisions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "contextScope": {
+            "type": "string",
+            "enum": [
+              "home",
+              "meeting"
+            ]
+          },
+          "meetingId": {
+            "type": "string"
+          },
+          "topK": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "query",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Search Memory",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "memory.get_bundle",
+      "description": "Build an intent-specific context bundle sized to token budget. Use after retrieval when preparing a grounded response.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "intentType": {
+            "type": "string"
+          },
+          "meetingId": {
+            "type": "string"
+          },
+          "tokenBudget": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Get Memory Bundle",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting.list_recent",
+      "description": "Deterministic recent-meeting discovery. Use before meeting.get for meeting-first workflows.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SCHEDULED",
+                "IN_PROGRESS",
+                "PROCESSING",
+                "TRANSCRIPT_READY",
+                "COMPLETED",
+                "FAILED"
+              ]
+            }
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "List Recent Meetings",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting.get",
+      "description": "Get one meeting with summary, embedding-ranked memory evidence, and cited transcript snippets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "evidenceLimit": {
+            "type": "number"
+          },
+          "transcriptSnippetLimit": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "meetingId",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Get Meeting Context",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting.get_transcript",
+      "description": "Explicit full transcript access with pagination. Use only when user requests full transcript text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "meetingId",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Get Meeting Transcript",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting.delete",
+      "description": "Permanently delete one meeting and its stored content. Only call after the user explicitly asks to delete that specific meeting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "meetingId",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Delete Meeting",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "memory.propose_write",
+      "description": "Create a pending proposal to write memory data. This does not mutate data immediately.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "type",
+          "content",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Propose Memory Write",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "coding.propose_implementation",
+      "description": "Create a pending proposal to launch Cursor or Tembo. If taskId is omitted, creates a Collabute task from title/prompt first. Does not start the agent until a human approves. Never guess the repository — pass repo as owner/name or rely on an existing repo binding.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "cursor",
+              "tembo"
+            ]
+          },
+          "repo": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Propose Implementation",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "integration.propose_action",
+      "description": "Create a pending proposal for integration action (Linear/Jira/Slack/Vercel/GitHub/coding agent). No direct external mutation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "jira",
+              "slack",
+              "vercel",
+              "github",
+              "coding_agent"
+            ]
+          },
+          "actionType": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "provider",
+          "actionType",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Propose Integration Action",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "meeting.propose_task_from_meeting",
+      "description": "Create a pending proposal for creating a task (Linear/Jira) from meeting evidence with snippet citations.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assigneeUserId": {
+            "type": "string"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ]
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "sourceSnippetIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "context": {
+            "type": "string",
+            "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+          }
+        },
+        "required": [
+          "meetingId",
+          "title",
+          "context"
+        ]
+      },
+      "annotations": {
+        "title": "Propose Task From Meeting",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      }
+    }
+  ]
+}

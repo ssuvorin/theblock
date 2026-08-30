@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,6 +30,7 @@ from app.models import (
     Person,
     PersonIdentity,
     SourceConnection,
+    as_utc,
     utcnow,
 )
 
@@ -164,7 +166,7 @@ class ConnectorGraphWriter:
         unchanged = (
             event.subject == record.subject
             and event.body_text == record.body_text
-            and event.occurred_at == record.occurred_at
+            and _same_moment(event.occurred_at, record.occurred_at)
             and event.is_deleted == record.is_deleted
             and event.metadata_json == _metadata(record)
         )
@@ -309,6 +311,16 @@ class ConnectorGraphWriter:
 
 def _metadata(record: NormalizedRecord) -> dict:
     return {"citation_locator": DEFAULT_LOCATOR, **record.metadata}
+
+
+def _same_moment(stored: datetime, incoming: datetime) -> bool:
+    """Compare instants, not tzinfo.
+
+    A stored timestamp comes back naive from engines that do not keep an offset, so comparing
+    raw values would report every replayed record as changed and re-version it forever.
+    """
+
+    return as_utc(stored) == as_utc(incoming)
 
 
 def _identity_candidates(

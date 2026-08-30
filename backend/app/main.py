@@ -12,6 +12,7 @@ from app.api import (
     health,
     imports,
     interactions,
+    meetings,
     opportunities,
     people,
     query,
@@ -62,6 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         drafts.router,
         followups.router,
         semantic.router,
+        meetings.router,
     ):
         application.include_router(router)
     return application

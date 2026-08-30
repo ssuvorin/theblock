@@ -68,6 +68,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("GOOGLE_CLIENT_SECRET", "CRM_GOOGLE_CLIENT_SECRET"),
     )
+    google_meeting_scheduling: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "GOOGLE_MEETING_SCHEDULING",
+            "CRM_GOOGLE_MEETING_SCHEDULING",
+        ),
+    )
+    meeting_default_minutes: int = Field(default=30, ge=5, le=480)
     connector_lookback_days: int = Field(default=90, ge=1, le=365)
     connector_page_limit: int = Field(default=10, ge=1, le=200)
     connector_batch_size: int = Field(default=100, ge=1, le=500)

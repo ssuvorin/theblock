@@ -58,4 +58,5 @@ def index_snapshot(session: Session, owner_id: str, settings: Settings) -> dict[
         "embedding_version": settings.embedding_version,
         "queue": runtime.outbox.status_counts(),
         "pending": runtime.outbox.pending_count(),
+        "chunks": runtime.outbox.chunks_indexed(),
     }

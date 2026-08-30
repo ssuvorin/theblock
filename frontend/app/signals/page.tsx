@@ -10,7 +10,7 @@ import type { FollowUp, FollowUpsResponse } from "@/lib/types";
 
 function getMetrics(followups: FollowUp[], referenceTime: number) {
   const overdue = followups.filter((item) => item.due_date && new Date(item.due_date).getTime() < referenceTime).length;
-  const high = followups.filter((item) => item.priority === "high").length;
+  const high = followups.filter((item) => (item.priority ?? 0) >= 50).length;
   return { pending: followups.length, overdue, high };
 }
 
@@ -78,10 +78,10 @@ export default function SignalsPage() {
           <section className="signal-list" aria-label="Open follow-ups">
             {followups.map((item) => (
               <SignalCard key={item.id}>
-                <div className="flex items-center gap-2"><Badge tone={item.priority === "high" ? "accent" : "neutral"}>{item.priority || "normal"}</Badge><span className="ml-auto mono muted">{formatDate(item.due_date)}</span></div>
+                <div className="flex items-center gap-2"><Badge tone={(item.priority ?? 0) >= 50 ? "accent" : "neutral"}>{(item.priority ?? 0) >= 50 ? "high" : "normal"}</Badge><span className="ml-auto mono muted">{formatDate(item.due_date)}</span></div>
                 <strong>{item.person?.display_name || "Relationship follow-up"}</strong>
                 <span className="prose-tone">{item.reason}</span>
-                <span className="mono muted">Source · {item.provenance || "manual"}</span>
+                <span className="mono muted">Source · {item.source || "manual"}</span>
                 <Button variant="secondary" size="small" onClick={() => complete(item)}>Mark complete</Button>
               </SignalCard>
             ))}

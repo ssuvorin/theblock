@@ -109,6 +109,14 @@ export interface QueryAnswer {
   degraded: boolean;
   degraded_components?: string[];
   private_retrieval?: string;
+  semantic_index?: {
+    provider?: string;
+    status?: string;
+    embedding_model?: string | null;
+    embedding_version?: string;
+    pending?: number;
+    chunks?: number;
+  };
 }
 
 export interface QueryResponse {
@@ -151,9 +159,9 @@ export interface FollowUp {
   person?: { id?: string; display_name?: string };
   reason: string;
   due_date?: string | null;
-  priority?: string;
+  priority?: number;
   status: "pending" | "done" | "skipped" | string;
-  provenance?: string;
+  source?: string;
 }
 
 export interface PersonProfile extends Omit<PersonSummary, "current_org"> {

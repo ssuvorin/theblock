@@ -17,6 +17,7 @@ from app.config import Settings, has_collabute, has_google_oauth, has_secret_vau
 from app.connectors.base import ConnectorNotConfigured, SourceConnector
 from app.connectors.collabute.connector import CollabuteConnector
 from app.connectors.google.connector import GoogleConnector
+from app.connectors.google.oauth import scopes_for
 
 AVAILABLE = "available"
 NOT_CONFIGURED = "not_configured"
@@ -55,49 +56,64 @@ class SourceDescriptor:
         }
 
 
-_DESCRIPTORS: tuple[SourceDescriptor, ...] = (
-    SourceDescriptor(
-        source="google",
-        label="Google (Gmail + Calendar)",
-        kind="oauth",
-        surfaces=("gmail", "google_calendar"),
-        scopes=(
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/calendar.readonly",
-        ),
-        processors=("OpenRouter (embeddings)", "Convex (semantic index)"),
-        disclosure=(
-            "Reads mail metadata, plain-text bodies and calendar events for the selected "
-            "account. No send, modify or delete scope is requested, and message bodies are "
-            "chunked into the semantic index via OpenRouter and Convex."
-        ),
-        requirements=("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ENCRYPTION_KEY"),
-    ),
-    SourceDescriptor(
-        source="collabute",
-        label="Collabute meetings",
-        kind="oauth_pkce",
-        surfaces=("collabute_meeting",),
-        scopes=("meeting:read",),
-        processors=("Collabute (MCP)", "OpenRouter (embeddings)", "Convex (semantic index)"),
-        disclosure=(
-            "Imports existing meetings over MCP: title, time, participants, summary, "
-            "decisions and action items. This CRM never schedules, records or transcribes a "
-            "meeting, and the human login step is completed by you in the browser."
-        ),
-        requirements=("ENCRYPTION_KEY",),
-    ),
-    SourceDescriptor(
-        source="whatsapp",
-        label="WhatsApp",
-        kind="qr",
-        surfaces=("whatsapp",),
-        scopes=(),
-        processors=(),
-        disclosure="Not built on this deployment. Nothing is read and nothing is synced.",
-        requirements=("EVOLUTION_API_URL", "EVOLUTION_API_KEY"),
-    ),
+READ_DISCLOSURE = (
+    "Reads mail metadata, plain-text bodies and calendar events for the selected account. "
+    "Message bodies are chunked into the semantic index via OpenRouter and Convex."
 )
+WRITE_DISCLOSURE = (
+    " Scheduling is enabled, so this app can also create one calendar event with a Google "
+    "Meet link and email the guests you name — only when you press the button, never "
+    "automatically. It still cannot send mail, or modify or delete anything that exists."
+)
+COLLABUTE_DISCLOSURE = (
+    "Imports existing meetings over MCP: title, time, participants, summary, decisions and "
+    "action items. Read-only — Collabute's MCP surface exposes no tool that creates a "
+    "meeting or adds a notetaker, so this app never schedules, records or transcribes on "
+    "Collabute's behalf. The human login step is completed by you in the browser."
+)
+
+
+def descriptors_for(settings: Settings) -> tuple[SourceDescriptor, ...]:
+    """Build the catalog from settings so a declared scope is always the requested scope."""
+
+    scheduling = settings.google_meeting_scheduling
+    return (
+        SourceDescriptor(
+            source="google",
+            label="Google (Gmail + Calendar)",
+            kind="oauth",
+            surfaces=("gmail", "google_calendar"),
+            scopes=scopes_for(settings),
+            processors=("OpenRouter (embeddings)", "Convex (semantic index)"),
+            disclosure=READ_DISCLOSURE + (WRITE_DISCLOSURE if scheduling else ""),
+            lookback_days=settings.connector_lookback_days,
+            write_access=scheduling,
+            requirements=("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ENCRYPTION_KEY"),
+        ),
+        SourceDescriptor(
+            source="collabute",
+            label="Collabute meetings",
+            kind="oauth_pkce",
+            surfaces=("collabute_meeting",),
+            scopes=tuple(settings.collabute_scopes.split()),
+            processors=("Collabute (MCP)", "OpenRouter (embeddings)", "Convex (semantic index)"),
+            disclosure=COLLABUTE_DISCLOSURE,
+            lookback_days=settings.connector_lookback_days,
+            write_access=False,
+            requirements=("ENCRYPTION_KEY",),
+        ),
+        SourceDescriptor(
+            source="whatsapp",
+            label="WhatsApp",
+            kind="qr",
+            surfaces=("whatsapp",),
+            scopes=(),
+            processors=(),
+            disclosure="Not built on this deployment. Nothing is read and nothing is synced.",
+            write_access=False,
+            requirements=("EVOLUTION_API_URL", "EVOLUTION_API_KEY"),
+        ),
+    )
 
 
 class ConnectorRegistry:
@@ -105,6 +121,7 @@ class ConnectorRegistry:
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._descriptors = descriptors_for(settings)
         self._factories: dict[str, Callable[[], SourceConnector]] = {
             "google": lambda: GoogleConnector(settings),
             "collabute": lambda: CollabuteConnector(settings),
@@ -112,10 +129,10 @@ class ConnectorRegistry:
 
     @property
     def descriptors(self) -> tuple[SourceDescriptor, ...]:
-        return _DESCRIPTORS
+        return self._descriptors
 
     def known(self, source: str) -> bool:
-        return any(item.source == source for item in _DESCRIPTORS)
+        return any(item.source == source for item in self._descriptors)
 
     def availability(self, source: str) -> tuple[str, str | None]:
         if source not in self._factories:
@@ -130,7 +147,7 @@ class ConnectorRegistry:
 
     def catalog(self) -> list[dict]:
         entries = []
-        for descriptor in _DESCRIPTORS:
+        for descriptor in self._descriptors:
             availability, reason = self.availability(descriptor.source)
             entries.append(descriptor.as_dict(availability, reason))
         return entries

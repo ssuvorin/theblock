@@ -34,6 +34,17 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def as_utc(value: datetime) -> datetime:
+    """Read a stored timestamp as UTC when the engine gave it back without an offset.
+
+    ``DateTime(timezone=True)`` round-trips as an aware value on PostgreSQL but as a naive one
+    on SQLite, so any comparison against ``utcnow()`` has to normalize first or it raises on
+    one engine and silently mis-evaluates on the other. Expiry checks depend on this.
+    """
+
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 class Base(DeclarativeBase):
     pass
 

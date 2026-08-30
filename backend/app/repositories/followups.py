@@ -1,9 +1,11 @@
 from datetime import date
 
-from sqlalchemy import case, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models import FollowUp, Person, utcnow
+
+PENDING = "pending"
 
 
 class FollowUpRepository:
@@ -12,23 +14,60 @@ class FollowUpRepository:
         self._owner_id = owner_id
         self._demo_mode = demo_mode
 
-    def list(self, status: str | None = None) -> list[tuple[FollowUp, Person]]:
+    def list(
+        self, status: str | None = None, sort: str = "due_date"
+    ) -> list[tuple[FollowUp, Person]]:
         overdue = case(
             (FollowUp.due_date < date.today(), 0),
             (FollowUp.due_date.is_(None), 2),
             else_=1,
         )
+        order = (
+            (FollowUp.priority.desc(), overdue, FollowUp.due_date)
+            if sort == "priority"
+            else (overdue, FollowUp.due_date, FollowUp.priority.desc())
+        )
         statement = (
             select(FollowUp, Person)
             .join(Person, Person.id == FollowUp.person_id)
             .where(FollowUp.owner_id == self._owner_id)
-            .order_by(overdue, FollowUp.due_date, FollowUp.priority.desc())
+            .order_by(*order)
         )
         if self._demo_mode:
             statement = statement.where(Person.data_origin != "real_import")
         if status:
             statement = statement.where(FollowUp.status == status)
         return list(self._session.execute(statement).all())
+
+    def pending_count(self) -> int:
+        """Count the open follow-ups, which is what decides whether the API derives on demand."""
+
+        statement = (
+            select(func.count())
+            .select_from(FollowUp)
+            .join(Person, Person.id == FollowUp.person_id)
+            .where(
+                FollowUp.owner_id == self._owner_id,
+                FollowUp.status == PENDING,
+            )
+        )
+        if self._demo_mode:
+            statement = statement.where(Person.data_origin != "real_import")
+        return self._session.scalar(statement) or 0
+
+    def status_counts(self) -> dict[str, int]:
+        """Group this owner's follow-ups by status for the counters the Signals screen shows."""
+
+        statement = (
+            select(FollowUp.status, func.count())
+            .select_from(FollowUp)
+            .join(Person, Person.id == FollowUp.person_id)
+            .where(FollowUp.owner_id == self._owner_id)
+            .group_by(FollowUp.status)
+        )
+        if self._demo_mode:
+            statement = statement.where(Person.data_origin != "real_import")
+        return {status: count for status, count in self._session.execute(statement).all()}
 
     def get(self, follow_up_id: str) -> FollowUp | None:
         statement = (

@@ -126,6 +126,19 @@ class SemanticOutboxRepository:
             or 0
         )
 
+    def chunks_indexed(self) -> int:
+        """Chunks this owner actually has in the vector store, read without calling it."""
+
+        return (
+            self._session.scalar(
+                select(func.coalesce(func.sum(SemanticIndexOutbox.chunks_written), 0)).where(
+                    SemanticIndexOutbox.owner_id == self._owner_id,
+                    SemanticIndexOutbox.status == STATUS_DONE,
+                )
+            )
+            or 0
+        )
+
     def status_counts(self) -> dict[str, int]:
         """Row counts per status for import reporting and staleness banners."""
 
