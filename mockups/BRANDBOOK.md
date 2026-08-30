@@ -1,5 +1,11 @@
 # Career Brain — Brand book
 
+> **Provenance copy.** This is the brand book as it came out of the design session
+> that produced the canvas in this directory. The canonical design system lives at
+> [`../DESIGN.md`](../DESIGN.md), which merges this document with the earlier
+> light-theme Mono Ether system. Where the two disagree, `DESIGN.md` wins; this file
+> is kept so the export stays intact and reviewable.
+
 **Product:** Career Brain — network-first job search
 **Tagline:** Your network, working for your career.
 **Design system:** Mono Ether — technocratic brutalism, dark-first

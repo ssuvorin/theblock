@@ -8,7 +8,7 @@ saturated action colour (Safety Orange `#FF6B00`).
 
 | Path | What it is |
 |---|---|
-| `BRANDBOOK.md` | Positioning, voice, colour tokens, type, component rules. Read first. |
+| `BRANDBOOK.md` | Provenance copy of the design-session brand book. The canonical system is [`../DESIGN.md`](../DESIGN.md). |
 | `Second Brain Mockups.dc.html` | The live canvas — every artboard, pan/zoom, dark/light toggle. |
 | `design/*.png` | Exported frames at full resolution. |
 | `design/avatars/*.png` | Cast avatars referenced by the canvas. |
