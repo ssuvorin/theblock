@@ -384,8 +384,8 @@ The submitted web application is deployed at a stable HTTPS URL, starts from doc
 
 - P0 is single-owner, but `owner_id` is mandatory for future isolation and current query safety.
 - Team-controlled Google and WhatsApp test accounts contain synthetic or consented demo conversations.
-- Google OAuth testing users and required readonly scopes are configured before implementation testing.
-- Evolution API is built from the pinned reviewed source and receives the required PII-log sanitization patch/configuration.
+- Google OAuth client credentials are provisioned locally through ignored runtime environment variables; the OAuth client still requires this application’s callback URI, consent-screen test users, and readonly scopes before implementation testing.
+- Evolution API is built locally from the pinned reviewed source and receives the required PII-log sanitization patch/configuration. Local development uses `http://localhost:8080`; any remotely hosted CRM backend reaches it only through an authenticated HTTPS tunnel or equivalent protected route.
 - Collabute signup and human OAuth are completed; the demo meeting is within the free plan’s accessible history window.
 - The Collabute adapter cannot be finalized until an authenticated `tools/list` response and representative meeting fixture are captured.
 - Context.dev provides 500 credits; current successful brand retrieval cost is assumed to be 10 credits.
@@ -416,7 +416,7 @@ The submitted web application is deployed at a stable HTTPS URL, starts from doc
 - Two P0 demos replace the previous conflicting pipeline definitions: identity-to-profile and Collabute-meeting-to-cited-action.
 - Required P0 sources are Google, WhatsApp/Evolution, Collabute, Context.dev, Convex, and OpenRouter. Telegram is stretch; LinkedIn is post-hackathon.
 - Identity resolution auto-links only high-trust deterministic identifiers. AI-only merges require review regardless of reported confidence.
-- Evolution webhooks are not assumed to carry a generic event ID or mandatory body signature. The adapter configures explicit webhook authentication and deduplicates WhatsApp messages by connection/instance plus `key.id`.
+- Evolution is built locally; its development endpoint is `http://localhost:8080` and remains runtime-configurable. Evolution webhooks are not assumed to carry a generic event ID or mandatory body signature. The adapter configures explicit webhook authentication and deduplicates WhatsApp messages by connection/instance plus `key.id`.
 - Collabute uses the Coding Tools Streamable HTTP MCP endpoint with human OAuth and runtime tool discovery; meeting tool schemas must be captured after authorization.
 - Drive is metadata-only in P0, but a first-class `Document` entity and manual person link are required for the NDA demo.
 - Source disconnect and source-data deletion are separate user choices and must propagate to derived semantic state.
